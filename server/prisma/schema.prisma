@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Enums basados en el frontend
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   // 'consultor_general', 'abogado_senior', 'abogado_junior', etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  assignedDocuments Document[]
+  auditLogs         AuditLog[]
+  complianceItems   ComplianceItem[]
+}
+
+model Document {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  type        String   // 'contract', 'policy', 'regulatory', etc.
+  status      String   // 'draft', 'in_review', 'published', etc.
+  riskLevel   String   // 'low', 'medium', 'high', 'critical'
+  version     String   @default("1.0")
+  
+  // Metadata fields (stored as individual columns for SQLite simplicity or JSON if supported)
+  regulatoryBody String?
+  expirationDate DateTime?
+  jurisdiction   String?
+  linkedEntity   String?
+  tags           String? // Comma separated tags
+
+  signatureStatus String? @default("pending")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  assignedToId String?
+  assignedTo   User?   @relation(fields: [assignedToId], references: [id])
+  
+  auditLogs    AuditLog[]
+  complianceItems ComplianceItem[]
+}
+
+model ComplianceItem {
+  id             String   @id @default(uuid())
+  title          String
+  area           String   // 'LEGAL', 'TAX', 'LABOR', etc.
+  description    String
+  status         String   // 'COMPLIANT', 'NON_COMPLIANT', etc.
+  riskLevel      String
+  lastAssessment DateTime?
+  nextReview     DateTime?
+  observations   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  assignedLawyerId String?
+  assignedLawyer   User? @relation(fields: [assignedLawyerId], references: [id])
+
+  linkedDocumentId String?
+  linkedDocument   Document? @relation(fields: [linkedDocumentId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String   // 'created', 'updated', 'status_change', 'exported'
+  details   String
+  timestamp DateTime @default(now())
+
+  // Relaciones
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id])
+}
