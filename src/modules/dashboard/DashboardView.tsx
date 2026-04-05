@@ -544,11 +544,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user }) => {
 
                         {/* Real Dynamic Rows */}
                         {[
-                            { label: 'LABORAL (LOTTT)', types: ['employment', 'laboral', 'hiring'] },
-                            { label: 'TRIBUTARIO', types: ['tax', 'tributario', 'fiscal'] },
+                            { label: 'LABORAL (LOTTT)', types: ['employment', 'laboral', 'regulatory'] },
+                            { label: 'CUMPLIMIENTO & GOBIERNO', types: ['compliance', 'cumplimiento', 'corporate_governance'] },
+                            { label: 'POLÍTICAS INTERNAS', types: ['policy', 'politica', 'politicas'] },
                             { label: 'CONTRATOS / NDA', types: ['nda', 'contract', 'service', 'commercial', 'NDA', 'COMMERCIAL'] },
                             { label: 'JUDICIAL / LITIGIO', types: ['judicial', 'litigation', 'expediente', 'litigio'] },
-                            { label: 'SISTEMA / OTROS', types: ['other', 'system', 'general'] },
                         ].map((row, i) => (
                             <React.Fragment key={i}>
                                 <div style={{ padding: '12px', fontSize: '0.8rem', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center' }}>{row.label}</div>
@@ -556,7 +556,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user }) => {
                                     // Cálculo real basado en la salud de los documentos
                                     const docsInCell = documents.filter(d => {
                                         const dType = (d.type || '').toLowerCase();
-                                        const dJuris = (d.metadata?.jurisdiction || 'VE').toUpperCase();
+                                        // Normalización de Jurisdicción (Mapeo de nombres completos a códigos)
+                                        let dJuris = (d.metadata?.jurisdiction || 'VE').toUpperCase();
+                                        if (dJuris.includes('VENEZUELA')) dJuris = 'VE';
+                                        if (dJuris.includes('EUROPA') || dJuris.includes('SPAIN')) dJuris = 'EU';
+                                        if (dJuris.includes('CARIBE') || dJuris.includes('PANAMA')) dJuris = 'CA';
+                                        
                                         return row.types.map(t => t.toLowerCase()).includes(dType) && dJuris === j;
                                     });
                                     
