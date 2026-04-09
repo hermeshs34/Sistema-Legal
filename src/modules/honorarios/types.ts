@@ -83,6 +83,7 @@ export interface TimeEntry {
 
 // ── Gastos ───────────────────────────────────────────────
 export type ExpenseCategory = 'COURT_FEE' | 'NOTARY' | 'EXPERT' | 'TRAVEL' | 'PRINTING' | 'APOSTILLE' | 'OTHER';
+export type Currency = 'USD' | 'EUR' | 'VES';
 
 export interface MatterExpense {
     id: string;
@@ -90,7 +91,10 @@ export interface MatterExpense {
     date: string;
     description: string;
     category: ExpenseCategory;
-    amountUsd: number;
+    currency: Currency;
+    amount: number;          // Monto en la moneda seleccionada
+    amountUsd: number;       // Equivalente en USD (para cálculos)
+    exchangeRate?: number;   // Tasa de cambio al momento del registro
     receiptUrl?: string;
     paidBy: 'FIRM' | 'CLIENT';
     isReimbursed: boolean;

@@ -75,6 +75,7 @@ export const HonorariosView: React.FC = () => {
     const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
     const [showInvoiceFromExpenses, setShowInvoiceFromExpenses] = useState(false);
     const [creatingExpenseInvoice, setCreatingExpenseInvoice] = useState(false);
+    const [expenseCurrency, setExpenseCurrency] = useState<'USD'|'EUR'|'VES'>('USD');
     
     // Sync UI states
     const [showSyncModal, setShowSyncModal] = useState(false);
@@ -976,7 +977,15 @@ export const HonorariosView: React.FC = () => {
                                                 {exp.paidBy === 'FIRM' ? '🏢 Despacho' : '👤 Cliente'}
                                             </span>
                                         </td>
-                                        <td style={{ padding: '0.875rem 1rem', fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>${exp.amountUsd.toLocaleString()}</td>
+                                        <td style={{ padding: '0.875rem 1rem' }}>
+                                            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
+                                                {exp.currency === 'EUR' ? '€' : exp.currency === 'VES' ? 'Bs.' : '$'}
+                                                {(exp.amount || exp.amountUsd).toLocaleString()}
+                                            </div>
+                                            {exp.currency !== 'USD' && exp.amountUsd > 0 && (
+                                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px' }}>≈ ${exp.amountUsd.toFixed(2)} USD</div>
+                                            )}
+                                        </td>
                                         <td style={{ padding: '0.875rem 1rem' }}>
                                             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: exp.isReimbursed ? '#059669' : '#d97706' }}>
                                                 {exp.isReimbursed ? '✓ Sí' : '⏳ Pendiente'}
@@ -1027,9 +1036,58 @@ export const HonorariosView: React.FC = () => {
                                         <input type="date" value={expenseForm.date || ''} onChange={e => setExpenseForm({...expenseForm, date: e.target.value})} style={inputStyle}/>
                                     </div>
                                     <div>
-                                        <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>MONTO USD *</label>
-                                        <input type="number" min="0" step="0.01" value={expenseForm.amountUsd || 0} onChange={e => setExpenseForm({...expenseForm, amountUsd: parseFloat(e.target.value) || 0})} style={inputStyle}/>
+                                        <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>MONEDA</label>
+                                        <select
+                                            value={expenseCurrency}
+                                            onChange={e => {
+                                                const c = e.target.value as 'USD'|'EUR'|'VES';
+                                                setExpenseCurrency(c);
+                                                setExpenseForm({...expenseForm, currency: c, exchangeRate: c === 'USD' ? 1 : expenseForm.exchangeRate});
+                                            }}
+                                            style={{ ...inputStyle, fontWeight: 700 }}
+                                        >
+                                            <option value="USD">🇺🇸 USD — Dólar</option>
+                                            <option value="EUR">🇪🇺 EUR — Euro</option>
+                                            <option value="VES">🇻🇪 Bs. — Bolívar</option>
+                                        </select>
                                     </div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: expenseCurrency === 'USD' ? '1fr' : '1fr 1fr', gap: '1rem' }}>
+                                    <div>
+                                        <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>
+                                            MONTO EN {expenseCurrency === 'VES' ? 'Bs.' : expenseCurrency} *
+                                        </label>
+                                        <div style={{ position: 'relative' }}>
+                                            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>
+                                                {expenseCurrency === 'USD' ? '$' : expenseCurrency === 'EUR' ? '€' : 'Bs.'}
+                                            </span>
+                                            <input
+                                                type="number" min="0" step="0.01"
+                                                value={expenseForm.amount || expenseForm.amountUsd || 0}
+                                                onChange={e => setExpenseForm({...expenseForm, amount: parseFloat(e.target.value) || 0, amountUsd: expenseCurrency === 'USD' ? parseFloat(e.target.value) || 0 : expenseForm.amountUsd})}
+                                                style={{ ...inputStyle, paddingLeft: expenseCurrency === 'VES' ? '40px' : '32px' }}
+                                            />
+                                        </div>
+                                    </div>
+                                    {expenseCurrency !== 'USD' && (
+                                        <div>
+                                            <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>
+                                                TASA {expenseCurrency}/USD
+                                            </label>
+                                            <input
+                                                type="number" min="0" step="0.01"
+                                                placeholder={expenseCurrency === 'EUR' ? 'Ej: 1.08' : 'Ej: 36.50'}
+                                                value={expenseForm.exchangeRate || ''}
+                                                onChange={e => setExpenseForm({...expenseForm, exchangeRate: parseFloat(e.target.value) || 1})}
+                                                style={inputStyle}
+                                            />
+                                            {(expenseForm.amount || 0) > 0 && (expenseForm.exchangeRate || 0) > 0 && (
+                                                <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#6366f1', fontWeight: 700 }}>
+                                                    ≈ ${((expenseForm.amount || 0) / (expenseForm.exchangeRate || 1)).toFixed(2)} USD
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>CATEGORÍA</label>

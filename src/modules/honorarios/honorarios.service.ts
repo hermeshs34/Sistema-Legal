@@ -352,14 +352,22 @@ class ExpenseService {
 
     async save(expense: Partial<MatterExpense>): Promise<MatterExpense> {
         const orgId = this.orgId();
+        const currency = expense.currency ?? 'USD';
+        const amount = expense.amount ?? expense.amountUsd ?? 0;
+        const rate = expense.exchangeRate ?? 1;
+        // amountUsd = amount / rate (si Bs o EUR, convertir a USD)
+        const amountUsd = currency === 'USD' ? amount : (amount / rate);
         const payload = {
-            matter_id: expense.matterId,
-            date: expense.date ?? new Date().toISOString().split('T')[0],
-            description: expense.description,
-            category: expense.category ?? 'OTHER',
-            amount_usd: expense.amountUsd,
-            receipt_url: expense.receiptUrl,
-            paid_by: expense.paidBy ?? 'FIRM',
+            matter_id:     expense.matterId,
+            date:          expense.date ?? new Date().toISOString().split('T')[0],
+            description:   expense.description,
+            category:      expense.category ?? 'OTHER',
+            currency,
+            amount,
+            exchange_rate: rate,
+            amount_usd:    amountUsd,
+            receipt_url:   expense.receiptUrl,
+            paid_by:       expense.paidBy ?? 'FIRM',
             is_reimbursed: expense.isReimbursed ?? false,
             organization_id: orgId,
         };
@@ -379,7 +387,11 @@ class ExpenseService {
         return {
             id: r.id, matterId: r.matter_id, date: r.date,
             description: r.description, category: r.category,
-            amountUsd: Number(r.amount_usd), receiptUrl: r.receipt_url,
+            currency: r.currency ?? 'USD',
+            amount: Number(r.amount ?? r.amount_usd ?? 0),
+            amountUsd: Number(r.amount_usd ?? 0),
+            exchangeRate: Number(r.exchange_rate ?? 1),
+            receiptUrl: r.receipt_url,
             paidBy: r.paid_by, isReimbursed: r.is_reimbursed,
             organizationId: r.organization_id, createdBy: r.created_by, createdAt: r.created_at,
         };
