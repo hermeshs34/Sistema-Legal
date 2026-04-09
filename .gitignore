@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ── SECRETOS — NUNCA subir al repositorio ─────────────────
+.env
+.env.local
+.env.production

@@ -63,6 +63,20 @@ export const ALERT_CONFIG: Record<AlertLevel, { label: string; color: string; bg
     expired:  { label: 'Vencido',    color: '#4b5563', bg: '#f9fafb', border: '#d1d5db', emoji: '💀' },
 };
 
+export type EventSource = 'AUDIENCIA' | 'LAPSO' | 'CUSTOM' | 'HOLIDAY';
+
+export interface CalendarEvent {
+    id: string;
+    source: EventSource;
+    title: string;
+    description?: string;
+    start: Date;
+    end?: Date;
+    color: string;
+    status: string;
+    metadata?: any;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SERVICIO
 // ═══════════════════════════════════════════════════════════════════════════
@@ -302,5 +316,86 @@ export const calendarService = {
         if (dias <= 7) return `Vence en ${dias} días`;
         if (dias <= 30) return `Vence en ${Math.ceil(dias / 7)} semanas`;
         return `Vence en ${Math.ceil(dias / 30)} meses`;
+    },
+
+    // ── Obtener todos los eventos unificados (Vista Global) ────────────────
+    async getUnifiedGlobalEvents(start: Date, end: Date): Promise<CalendarEvent[]> {
+        const startStr = start.toISOString();
+        const endStr = end.toISOString();
+        const startDateOnly = start.toISOString().split('T')[0];
+        const endDateOnly = end.toISOString().split('T')[0];
+
+        const [audiencias, lapsos, custom, holidays] = await Promise.all([
+            supabase.from('audiencias').select('*, expedientes(titulo)').gte('fecha_hora', startStr).lte('fecha_hora', endStr),
+            supabase.from('expediente_lapsos').select('*, expedientes(titulo)').gte('fecha_vencimiento', startDateOnly).lte('fecha_vencimiento', endDateOnly),
+            supabase.from('judicial_calendar_custom').select('*').gte('start_at', startStr).lte('start_at', endStr),
+            this.getHolidays('VE') // Por ahora general
+        ]);
+
+        const events: CalendarEvent[] = [];
+
+        // 👨‍⚖️ AUDIENCIAS
+        if (audiencias.data) {
+            audiencias.data.forEach((aud: any) => {
+                events.push({
+                    id: aud.id,
+                    source: 'AUDIENCIA',
+                    title: `⚖️ Audiencia: ${aud.expedientes?.titulo || 'Caso'}`,
+                    description: `${aud.tipo} en ${aud.tribunal || 'Tribunal'}`,
+                    start: new Date(aud.fecha_hora),
+                    color: '#4f46e5',
+                    status: aud.status
+                });
+            });
+        }
+
+        // ⏰ LAPSOS
+        if (lapsos.data) {
+            lapsos.data.forEach((lap: any) => {
+                events.push({
+                    id: lap.id,
+                    source: 'LAPSO',
+                    title: `⏰ Vencimiento: ${lap.lapso_name}`,
+                    description: `Expediente: ${lap.expedientes?.titulo || 'Caso'}`,
+                    start: new Date(lap.fecha_vencimiento),
+                    color: ALERT_CONFIG[lap.alerted_level as AlertLevel]?.color || '#64748b',
+                    status: 'PENDING'
+                });
+            });
+        }
+
+        // 📅 CUSTOM
+        if (custom.data) {
+            custom.data.forEach((ev: any) => {
+                events.push({
+                    id: ev.id,
+                    source: 'CUSTOM',
+                    title: `💼 ${ev.title}`,
+                    description: ev.description,
+                    start: new Date(ev.start_at),
+                    end: ev.end_at ? new Date(ev.end_at) : undefined,
+                    color: '#6366f1',
+                    status: ev.status
+                });
+            });
+        }
+
+        // 🏛️ HOLIDAYS
+        holidays.forEach(h => {
+             // Only if within dates
+             const hDate = new Date(h.is_recurring ? `${start.getFullYear()}-${h.holiday_date.split('-').slice(1).join('-')}` : h.holiday_date);
+             if (hDate >= start && hDate <= end) {
+                events.push({
+                    id: h.id,
+                    source: 'HOLIDAY',
+                    title: `🏛️ No Hábil: ${h.name}`,
+                    start: hDate,
+                    color: '#fbbf24',
+                    status: 'CLOSED'
+                });
+             }
+        });
+
+        return events.sort((a, b) => a.start.getTime() - b.start.getTime());
     },
 };

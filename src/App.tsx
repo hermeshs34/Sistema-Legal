@@ -20,6 +20,8 @@ import { ParametersView } from './modules/parameters/ParametersView.tsx';
 import { FlowsAdminView } from './modules/flows/FlowsAdminView.tsx';
 import { rgpdService } from './core/rgpd.service.ts';
 import { ExternalSignView } from './modules/contracts/ExternalSignView.tsx';
+import { HonorariosView } from './modules/honorarios/HonorariosView.tsx';
+import { CalendarView } from './modules/calendar/CalendarView.tsx';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -84,30 +86,20 @@ function App() {
 
   const renderContent = () => {
     switch (currentView) {
-      case 'dashboard':
-        return <DashboardView user={user} />;
-      case 'documents':
-        return <DocumentListView user={user} />;
-      case 'contracts':
-        return <ContractListView />;
-      case 'compliance':
-        return <ComplianceView />;
-      case 'risks':
-        return <RiskMatrixView />;
-      case 'lawyers':
-        return <LawyerListView />;
-      case 'judicial':
-        return <ExpedienteListView />;
-      case 'users':
-        return <UserListView />;
-      case 'parameters':
-        return <ParametersView />;
-      case 'flows':
-        return <FlowsAdminView />;
-      case 'settings':
-        return <AdminSettingsView />;
-      default:
-        return <div className="premium-card" style={{ padding: '2rem' }}><h2>Vista no encontrada</h2></div>;
+      case 'dashboard':  return <DashboardView user={user} />;
+      case 'documents':  return <DocumentListView user={user} />;
+      case 'contracts':  return <ContractListView />;
+      case 'compliance': return <ComplianceView />;
+      case 'risks':      return <RiskMatrixView />;
+      case 'lawyers':    return <LawyerListView />;
+      case 'judicial':   return <ExpedienteListView />;
+      case 'users':      return <UserListView />;
+      case 'parameters': return <ParametersView />;
+      case 'flows':      return <FlowsAdminView />;
+      case 'settings':   return <AdminSettingsView />;
+      case 'honorarios': return <HonorariosView />;
+      case 'calendar':   return <CalendarView />;
+      default:           return <div className="premium-card" style={{ padding: '2rem' }}><h2>Vista no encontrada: {currentView}</h2></div>;
     }
   };
 

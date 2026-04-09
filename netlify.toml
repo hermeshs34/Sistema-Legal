@@ -1,0 +1,44 @@
+# ══════════════════════════════════════════════════════════
+# Configuración de Despliegue — LegalDoc VE
+# Netlify + Vite + React
+# ══════════════════════════════════════════════════════════
+
+[build]
+  # Comando para construir la aplicación
+  command = "npm run build"
+  # Directorio de salida generado por Vite
+  publish = "dist"
+  # Directorio base (raíz del proyecto)
+  base = "/"
+
+[build.environment]
+  # Versión de Node.js recomendada para Vite 7
+  NODE_VERSION = "20"
+
+# ────────────────────────────────────────────────────────
+# Reglas de Redirección — SPA (Single Page Application)
+# CRÍTICO: Sin esta regla, las rutas directas (ej. /dashboard)
+# retornarían 404 en producción.
+# ────────────────────────────────────────────────────────
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# ────────────────────────────────────────────────────────
+# Cabeceras de Seguridad
+# ────────────────────────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Cache agresivo para assets estáticos (JS/CSS hasheados por Vite)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

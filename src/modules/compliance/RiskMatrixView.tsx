@@ -19,7 +19,10 @@ export const RiskMatrixView: React.FC = () => {
             if (data.length > 0) {
                 try {
                     const desc = data.map(i => `${i.title}: ${i.riskLevel}`).join(', ');
-                    const summary = await aiService.query(`Analiza esta lista de riesgos de cumplimiento y da un resumen ejecutivo de 2 párrafos sobre la exposición actual: ${desc}`);
+                    const summary = await aiService.query(
+                            `Analiza esta lista de riesgos de cumplimiento y da un resumen ejecutivo de 2 párrafos sobre la exposición actual: ${desc}`,
+                            'Eres un experto en compliance legal venezolano.'
+                        );
                     setAiSummary(summary);
                 } catch (e) {
                     setAiSummary('Exposición moderada basada en el catálogo de cumplimiento actual.');

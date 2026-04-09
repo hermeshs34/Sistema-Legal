@@ -261,6 +261,22 @@ export const expedienteService = {
         if (error) throw new Error(`Error al guardar actuación: ${error.message}`);
     },
 
+    async uploadActuacionFile(expedienteId: string, file: File): Promise<string> {
+        const user = authService.getCurrentUser();
+        if (!user) throw new Error('Usuario no autenticado');
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${expedienteId}/${Date.now()}.${fileExt}`;
+        const filePath = `actuaciones/${fileName}`;
+
+        const { error } = await supabase.storage
+            .from('legal-documents')
+            .upload(filePath, file);
+
+        if (error) throw error;
+        return filePath;
+    },
+
     async deleteActuacion(id: string): Promise<void> {
         const user = authService.getCurrentUser();
         if (!user) return;

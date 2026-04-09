@@ -11,7 +11,9 @@ import {
     Gavel,
     Settings,
     SlidersHorizontal,
-    GitBranch
+    GitBranch,
+    Wallet,
+    CalendarDays
 } from 'lucide-react';
 import type { User, UserRole } from '../../core/user.types.ts';
 
@@ -26,7 +28,9 @@ interface MainLayoutProps {
 const SIDEBAR_ITEMS = [
     { id: 'dashboard', label: 'Dashboard',          icon: LayoutDashboard, roles: ['consultor_general', 'abogado_senior', 'abogado_junior', 'consultor_principal', 'aprendiz'] },
     { id: 'documents', label: 'Gestión Documental', icon: FileText,         roles: ['consultor_general', 'abogado_senior', 'abogado_junior', 'consultor_principal', 'aprendiz'] },
+    { id: 'calendar',  label: 'Calendario',          icon: CalendarDays,     roles: ['consultor_general', 'abogado_senior', 'abogado_junior', 'consultor_principal'] },
     { id: 'contracts', label: 'Contratos',           icon: FileSignature,    roles: ['consultor_general', 'abogado_senior'] },
+    { id: 'honorarios', label: 'Honorarios',          icon: Wallet,           roles: ['consultor_general', 'abogado_senior'] },
     { id: 'judicial',  label: 'Módulo Judicial',     icon: Gavel,            roles: ['consultor_general', 'abogado_senior', 'consultor_principal'] },
     { id: 'compliance',label: 'Compliance',           icon: ShieldCheck,      roles: ['consultor_general', 'abogado_senior', 'consultor_principal'] },
     { id: 'risks',     label: 'Gestión de Riesgo',   icon: Scale,            roles: ['consultor_general', 'abogado_senior', 'consultor_principal'] },

@@ -10,7 +10,10 @@ const PROCESS_COLORS: Record<ProcessType, string> = {
     CIVIL: '#6366f1',
     LABORAL: '#7c3aed',
     PENAL: '#dc2626',
-    MERCANTIL: '#ea580c'
+    MERCANTIL: '#ea580c',
+    ADMINISTRATIVO: '#0284c7',
+    CONSTITUCIONAL: '#059669',
+    ARBITRAJE: '#d97706'
 };
 
 export const FlowsAdminView: React.FC = () => {

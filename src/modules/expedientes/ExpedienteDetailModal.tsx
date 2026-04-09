@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     X, Edit, Plus, Calendar, FileText, Printer,
     Trash2, Save, Zap, TrendingUp, AlertOctagon, RefreshCw, BarChart3, Info, Loader2,
-    FileCheck, Archive, Shield, Clock, Target, AlertTriangle, CheckCircle
+    FileCheck, Archive, Shield, Clock, Target, AlertTriangle, CheckCircle, Paperclip
 } from 'lucide-react';
 import { predictiveAiService, type JudicialPrediction } from '../shared/predictive-ai.service.ts';
 import { expedienteService } from './expediente.service.ts';
@@ -10,6 +10,7 @@ import { reportService } from '../shared/report.service.ts';
 import { authService } from '../../core/auth.service.ts';
 import { LapsosWidget } from '../calendar/LapsosWidget.tsx';
 import { FlowWidget } from '../flows/FlowWidget.tsx';
+import { ActuacionesTimeline } from './ActuacionesTimeline.tsx';
 import type { Expediente, Actuacion, Audiencia, TipoActuacion, TipoAudiencia, AudienciaStatus, ActuacionStatus } from './types.ts';
 import { STATUS_CONFIG, RIESGO_CONFIG, TIPO_PROCESO_LABELS, TIPO_ACTUACION_LABELS } from './types.ts';
 
@@ -41,7 +42,6 @@ export const ExpedienteDetailModal: React.FC<Props> = ({ expediente: initialExp,
     const [loadingPrediction, setLoadingPrediction] = useState(false);
     const [actuaciones, setActuaciones] = useState<Actuacion[]>([]);
     const [audiencias, setAudiencias] = useState<Audiencia[]>([]);
-    const [loading, setLoading] = useState(false);
     
     // Estados para correcciones
     const [editingActId, setEditingActId] = useState<string | null>(null);
@@ -56,8 +56,10 @@ export const ExpedienteDetailModal: React.FC<Props> = ({ expediente: initialExp,
         descripcion: '', 
         resultado: '', 
         proximoPaso: '',
-        status: 'REALIZADA' as ActuacionStatus 
+        status: 'REALIZADA' as ActuacionStatus,
+        archivoUrl: '' as string | undefined
     });
+    const [actFile, setActFile] = useState<File | null>(null);
     const [savingAct, setSavingAct] = useState(false);
 
     // Formulario audiencia
@@ -71,14 +73,12 @@ export const ExpedienteDetailModal: React.FC<Props> = ({ expediente: initialExp,
     const rCfg = RIESGO_CONFIG[initialExp.riesgo];
 
     const loadSubs = async () => {
-        setLoading(true);
         const [acts, auds] = await Promise.all([
             expedienteService.getActuaciones(initialExp.id),
             expedienteService.getAudiencias(initialExp.id),
         ]);
         setActuaciones(acts);
         setAudiencias(auds);
-        setLoading(false);
     };
 
     useEffect(() => {
@@ -110,13 +110,19 @@ export const ExpedienteDetailModal: React.FC<Props> = ({ expediente: initialExp,
         }
         setSavingAct(true);
         try {
+            let finalArchivoUrl = actForm.archivoUrl;
+            if (actFile) {
+                finalArchivoUrl = await expedienteService.uploadActuacionFile(initialExp.id, actFile);
+            }
+
             if (editingActId) {
-                await expedienteService.updateActuacion(editingActId, { ...actForm });
+                await expedienteService.updateActuacion(editingActId, { ...actForm, archivoUrl: finalArchivoUrl });
             } else {
                 await expedienteService.saveActuacion({
                     expedienteId: initialExp.id,
                     organizationId: initialExp.organizationId,
                     ...actForm,
+                    archivoUrl: finalArchivoUrl,
                     createdBy: user?.id,
                 });
             }
@@ -126,8 +132,10 @@ export const ExpedienteDetailModal: React.FC<Props> = ({ expediente: initialExp,
                 descripcion: '', 
                 resultado: '', 
                 proximoPaso: '', 
-                status: 'REALIZADA' 
+                status: 'REALIZADA',
+                archivoUrl: undefined
             });
+            setActFile(null);
             setShowActForm(false);
             setEditingActId(null);
             setConfirmBeforeSave(false);
@@ -314,45 +322,64 @@ export const ExpedienteDetailModal: React.FC<Props> = ({ expediente: initialExp,
 
                                     <textarea style={{ ...inputStyle, minHeight: '100px', marginBottom: '1.25rem' }} value={actForm.descripcion} onChange={e => setActForm({ ...actForm, descripcion: e.target.value })} placeholder="Escriba la descripción oficial de la actuación..." />
                                     
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                                        <div>
+                                            <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', marginBottom: '8px', display: 'block' }}>RESULTADO INMEDIATO / IMPACTO</label>
+                                            <input type="text" style={inputStyle} value={actForm.resultado} onChange={e => setActForm({ ...actForm, resultado: e.target.value })} placeholder="¿Qué se logró?" />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', marginBottom: '8px', display: 'block' }}>PRÓXIMO PASO SUGERIDO</label>
+                                            <input type="text" style={inputStyle} value={actForm.proximoPaso} onChange={e => setActForm({ ...actForm, proximoPaso: e.target.value })} placeholder="Acción a seguir..." />
+                                        </div>
+                                    </div>
+
+                                    <div style={{ marginBottom: '1.5rem' }}>
+                                        <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#94a3b8', marginBottom: '8px', display: 'block' }}>DOCUMENTO DE RESPALDO (ESCANEADO / PDF)</label>
+                                        <div style={{ position: 'relative', height: '48px', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', paddingLeft: '1rem', paddingRight: '1rem', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                                            <Paperclip size={16} style={{ position: 'absolute', left: '1rem', color: '#64748b' }} />
+                                            <input 
+                                                type="file" 
+                                                onChange={e => setActFile(e.target.files?.[0] || null)}
+                                                style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} 
+                                            />
+                                            <span style={{ marginLeft: '3rem', fontSize: '0.85rem', color: actFile ? '#1e293b' : '#94a3b8', fontWeight: actFile ? 700 : 400 }}>
+                                                {actFile ? `✅ ${actFile.name}` : (actForm.archivoUrl ? '📄 Archivo cargado (Clic para cambiar)' : 'Adjuntar acta o boleta de diligencia...')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center' }}>
                                         {confirmBeforeSave && <span style={{ fontSize: '0.75rem', color: '#e11d48', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '6px' }}><AlertOctagon size={14} /> ¿La información es veraz y corregida?</span>}
                                         <button onClick={() => setShowActForm(false)} style={{ background: 'none', border: 'none', color: '#64748b', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>Cancelar</button>
-                                        <button onClick={handleSaveActuacion} style={{ padding: '0.75rem 2rem', borderRadius: '12px', background: confirmBeforeSave ? '#e11d48' : '#1e1b4b', color: 'white', border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem' }}>
-                                            {confirmBeforeSave ? 'SÍ, CONFIRMO' : 'Guardar'}
+                                        <button onClick={handleSaveActuacion} disabled={savingAct} style={{ padding: '0.75rem 2rem', borderRadius: '12px', background: confirmBeforeSave ? '#e11d48' : '#1e1b4b', color: 'white', border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            {savingAct && <RefreshCw size={16} className="spin" />}
+                                            {savingAct ? 'GUARDANDO...' : (confirmBeforeSave ? 'SÍ, CONFIRMO' : 'Guardar Actuación')}
                                         </button>
                                     </div>
                                 </div>
                             )}
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                                {actuaciones.map(act => (
-                                    <div key={act.id} style={{ padding: '1.5rem 1.75rem', background: '#fff', borderRadius: '20px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', boxShadow: '0 2px 4px rgba(0,0,0,0.01)' }}>
-                                        <div>
-                                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                                <div style={{ padding: '3px 10px', background: '#f1f5f9', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, color: '#475569' }}>📄 {TIPO_ACTUACION_LABELS[act.tipo]}</div>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8' }}>{new Date(act.fecha).toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                                                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: act.status === 'PENDIENTE' ? '#d97706' : act.status === 'REALIZADA' ? '#16a34a' : '#64748b', background: act.status === 'PENDIENTE' ? '#fffbeb' : act.status === 'REALIZADA' ? '#f0fdf4' : '#f8fafc', padding: '2px 8px', borderRadius: '6px' }}>{act.status}</span>
-                                            </div>
-                                            <p style={{ margin: 0, fontWeight: 500, color: '#334155', fontSize: '0.95rem', lineHeight: 1.5 }}>{act.descripcion}</p>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <button onClick={() => { 
-                                                setEditingActId(act.id); 
-                                                setActForm({ 
-                                                    fecha: act.fecha,
-                                                    tipo: act.tipo,
-                                                    descripcion: act.descripcion,
-                                                    resultado: act.resultado || '',
-                                                    proximoPaso: act.proximoPaso || '',
-                                                    status: act.status || 'REALIZADA'
-                                                }); 
-                                                setShowActForm(true); 
-                                            }} style={{ padding: '0.5rem', color: '#6366f1', background: '#f5f3ff', borderRadius: '10px', border: 'none', cursor: 'pointer' }}><Edit size={16} /></button>
-                                            {isAuthorizedToRevert && <button onClick={() => { if(window.confirm('¿Desea revertir este hito procesal?')) expedienteService.deleteActuacion(act.id).then(loadSubs); }} style={{ padding: '0.5rem', color: '#ef4444', background: '#fef2f2', borderRadius: '10px', border: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <ActuacionesTimeline 
+                                actuaciones={actuaciones}
+                                onEdit={(act) => {
+                                    setEditingActId(act.id);
+                                    setActForm({
+                                        fecha: act.fecha,
+                                        tipo: act.tipo,
+                                        descripcion: act.descripcion,
+                                        resultado: act.resultado || '',
+                                        proximoPaso: act.proximoPaso || '',
+                                        status: act.status || 'REALIZADA',
+                                        archivoUrl: act.archivoUrl
+                                    });
+                                    setShowActForm(true);
+                                }}
+                                onDelete={(id) => {
+                                    if(window.confirm('¿Desea revertir este hito procesal?')) 
+                                        expedienteService.deleteActuacion(id).then(loadSubs);
+                                }}
+                                canDelete={isAuthorizedToRevert}
+                            />
                         </div>
                     )}
 
