@@ -20,7 +20,10 @@ import {
     FileSignature,
     Receipt,
     X,
-    Filter
+    Filter,
+    Paperclip,
+    ExternalLink,
+    FileDown
 } from 'lucide-react';
 import { clientService, matterService, invoiceService, timeEntryService, paymentService, expenseService } from './honorarios.service.ts';
 import { contractService } from '../contracts/contract.service.ts';
@@ -67,6 +70,11 @@ export const HonorariosView: React.FC = () => {
         isReimbursed: false
     });
     const [savingExpense, setSavingExpense] = useState(false);
+    const [uploadingReceipt, setUploadingReceipt] = useState(false);
+    const [receiptFile, setReceiptFile] = useState<File | null>(null);
+    const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
+    const [showInvoiceFromExpenses, setShowInvoiceFromExpenses] = useState(false);
+    const [creatingExpenseInvoice, setCreatingExpenseInvoice] = useState(false);
     
     // Sync UI states
     const [showSyncModal, setShowSyncModal] = useState(false);
@@ -817,17 +825,33 @@ export const HonorariosView: React.FC = () => {
         if (!expenseForm.matterId || !expenseForm.description || !expenseForm.amountUsd) return;
         setSavingExpense(true);
         try {
-            await expenseService.save(expenseForm);
+            // 1. Subir comprobante si hay archivo seleccionado
+            let receiptUrl = expenseForm.receiptUrl;
+            if (receiptFile) {
+                setUploadingReceipt(true);
+                const ext = receiptFile.name.split('.').pop();
+                const path = `receipts/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                const { data: uploadData, error: uploadErr } = await supabase.storage
+                    .from('expense-receipts')
+                    .upload(path, receiptFile, { upsert: true });
+                setUploadingReceipt(false);
+                if (uploadErr) throw new Error('Error subiendo comprobante: ' + uploadErr.message);
+                const { data: urlData } = supabase.storage.from('expense-receipts').getPublicUrl(uploadData.path);
+                receiptUrl = urlData.publicUrl;
+            }
+            await expenseService.save({ ...expenseForm, receiptUrl });
             // Recargar
             const expPromises = matters.map(m => expenseService.getByMatter(m.id));
             const expArrays = await Promise.all(expPromises);
             setExpenses(expArrays.flat());
             setShowExpenseModal(false);
+            setReceiptFile(null);
             setExpenseForm({ matterId: '', date: new Date().toISOString().split('T')[0], description: '', category: 'OTHER', amountUsd: 0, paidBy: 'FIRM', isReimbursed: false });
         } catch (e: any) {
             alert('Error al guardar gasto: ' + e.message);
         } finally {
             setSavingExpense(false);
+            setUploadingReceipt(false);
         }
     };
 
@@ -859,7 +883,7 @@ export const HonorariosView: React.FC = () => {
                 </div>
 
                 {/* Toolbar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <Filter size={16} color="#64748b" />
                         <select
@@ -873,16 +897,38 @@ export const HonorariosView: React.FC = () => {
                             ))}
                         </select>
                     </div>
-                    <button
-                        className="btn-primary"
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                        onClick={() => {
-                            setExpenseForm({ matterId: expenseFilterMatter || '', date: new Date().toISOString().split('T')[0], description: '', category: 'OTHER', amountUsd: 0, paidBy: 'FIRM', isReimbursed: false });
-                            setShowExpenseModal(true);
-                        }}
-                    >
-                        <Plus size={18}/> Registrar Gasto
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        {/* Exportar PDF */}
+                        <button
+                            className="btn-secondary"
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                            onClick={() => handleExportExpensesPDF(filtered)}
+                            disabled={filtered.length === 0}
+                        >
+                            <FileDown size={16}/> Exportar PDF
+                        </button>
+                        {/* Facturar gastos seleccionados */}
+                        {selectedExpenses.length > 0 && (
+                            <button
+                                className="btn-secondary"
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', borderColor: '#6366f1', color: '#6366f1' }}
+                                onClick={() => setShowInvoiceFromExpenses(true)}
+                            >
+                                <Receipt size={16}/> Facturar ({selectedExpenses.length})
+                            </button>
+                        )}
+                        <button
+                            className="btn-primary"
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                            onClick={() => {
+                                setExpenseForm({ matterId: expenseFilterMatter || '', date: new Date().toISOString().split('T')[0], description: '', category: 'OTHER', amountUsd: 0, paidBy: 'FIRM', isReimbursed: false });
+                                setReceiptFile(null);
+                                setShowExpenseModal(true);
+                            }}
+                        >
+                            <Plus size={18}/> Registrar Gasto
+                        </button>
+                    </div>
                 </div>
 
                 {/* Tabla */}
@@ -890,19 +936,33 @@ export const HonorariosView: React.FC = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ background: '#f8fafc' }}>
-                                {['Fecha', 'Asunto', 'Categoría', 'Descripción', 'Pagado por', 'Monto USD', 'Reembolsado', ''].map((h, i) => (
+                                <th style={{ padding: '1rem', width: '40px' }}>
+                                    <input type="checkbox"
+                                        checked={filtered.length > 0 && selectedExpenses.length === filtered.length}
+                                        onChange={e => setSelectedExpenses(e.target.checked ? filtered.map(x => x.id) : [])}
+                                    />
+                                </th>
+                                {['Fecha', 'Asunto', 'Categoría', 'Descripción', 'Pagado por', 'Monto USD', 'Reembolsado', 'Comprobante', ''].map((h, i) => (
                                     <th key={i} style={{ padding: '1rem', textAlign: 'left', fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.length === 0 ? (
-                                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No hay gastos registrados. Pulsa «Registrar Gasto» para comenzar.</td></tr>
+                                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No hay gastos registrados. Pulsa «Registrar Gasto» para comenzar.</td></tr>
                             ) : filtered.map(exp => {
                                 const cat = EXPENSE_CATEGORIES[exp.category] || EXPENSE_CATEGORIES.OTHER;
                                 const matter = matters.find(m => m.id === exp.matterId);
+                                const isSelected = selectedExpenses.includes(exp.id);
                                 return (
-                                    <tr key={exp.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <tr key={exp.id} style={{ borderBottom: '1px solid #f1f5f9', background: isSelected ? '#f5f7ff' : 'white' }}>
+                                        <td style={{ padding: '0.875rem 1rem' }}>
+                                            <input type="checkbox" checked={isSelected}
+                                                onChange={e => setSelectedExpenses(
+                                                    e.target.checked ? [...selectedExpenses, exp.id] : selectedExpenses.filter(id => id !== exp.id)
+                                                )}
+                                            />
+                                        </td>
                                         <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: '#64748b' }}>{exp.date}</td>
                                         <td style={{ padding: '0.875rem 1rem', fontSize: '0.82rem', fontWeight: 600, color: '#1e293b' }}>{matter?.title ?? '—'}</td>
                                         <td style={{ padding: '0.875rem 1rem' }}>
@@ -910,7 +970,7 @@ export const HonorariosView: React.FC = () => {
                                                 {cat.icon} {cat.label}
                                             </span>
                                         </td>
-                                        <td style={{ padding: '0.875rem 1rem', fontSize: '0.82rem', maxWidth: '200px' }}>{exp.description}</td>
+                                        <td style={{ padding: '0.875rem 1rem', fontSize: '0.82rem', maxWidth: '180px' }}>{exp.description}</td>
                                         <td style={{ padding: '0.875rem 1rem' }}>
                                             <span style={{ fontSize: '0.76rem', fontWeight: 700, color: exp.paidBy === 'FIRM' ? '#dc2626' : '#059669' }}>
                                                 {exp.paidBy === 'FIRM' ? '🏢 Despacho' : '👤 Cliente'}
@@ -923,8 +983,16 @@ export const HonorariosView: React.FC = () => {
                                             </span>
                                         </td>
                                         <td style={{ padding: '0.875rem 1rem' }}>
+                                            {exp.receiptUrl ? (
+                                                <a href={exp.receiptUrl} target="_blank" rel="noopener noreferrer"
+                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#6366f1', fontWeight: 700, textDecoration: 'none' }}>
+                                                    <Paperclip size={12}/> Ver
+                                                </a>
+                                            ) : <span style={{ color: '#cbd5e1', fontSize: '0.72rem' }}>—</span>}
+                                        </td>
+                                        <td style={{ padding: '0.875rem 1rem' }}>
                                             <button
-                                                onClick={() => { setExpenseForm(exp); setShowExpenseModal(true); }}
+                                                onClick={() => { setExpenseForm(exp); setReceiptFile(null); setShowExpenseModal(true); }}
                                                 style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#6366f1' }}
                                             ><Edit2 size={14}/></button>
                                         </td>
@@ -975,6 +1043,28 @@ export const HonorariosView: React.FC = () => {
                                     <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>DESCRIPCIÓN *</label>
                                     <input value={expenseForm.description || ''} onChange={e => setExpenseForm({...expenseForm, description: e.target.value})} placeholder="Ej: Arancel de presentación ante tribunal..." style={inputStyle}/>
                                 </div>
+                                {/* COMPROBANTE */}
+                                <div>
+                                    <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>COMPROBANTE (PDF / Imagen)</label>
+                                    <div style={{ border: '2px dashed #e2e8f0', borderRadius: '12px', padding: '1rem', textAlign: 'center', cursor: 'pointer', background: receiptFile ? '#f0fdf4' : '#fafafa' }}
+                                        onClick={() => document.getElementById('receipt-file-input')?.click()}>
+                                        <input id="receipt-file-input" type="file" accept="image/*,application/pdf" style={{ display: 'none' }}
+                                            onChange={e => setReceiptFile(e.target.files?.[0] || null)}/>
+                                        {receiptFile ? (
+                                            <span style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 700 }}>✓ {receiptFile.name}</span>
+                                        ) : expenseForm.receiptUrl ? (
+                                            <span style={{ fontSize: '0.8rem', color: '#6366f1' }}><Paperclip size={12}/> Comprobante adjunto — click para reemplazar</span>
+                                        ) : (
+                                            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}><Paperclip size={14}/> Click para adjuntar comprobante</span>
+                                        )}
+                                    </div>
+                                    {expenseForm.receiptUrl && !receiptFile && (
+                                        <a href={expenseForm.receiptUrl} target="_blank" rel="noopener noreferrer"
+                                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#6366f1', marginTop: '0.4rem' }}>
+                                            <ExternalLink size={12}/> Ver comprobante actual
+                                        </a>
+                                    )}
+                                </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                     <div>
                                         <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>PAGADO POR</label>
@@ -999,9 +1089,119 @@ export const HonorariosView: React.FC = () => {
                         </div>
                     </div>
                 )}
+                {/* Modal — Facturar Gastos Seleccionados */}
+                {showInvoiceFromExpenses && (() => {
+                    const selExp = expenses.filter(e => selectedExpenses.includes(e.id));
+                    const subtotal = selExp.reduce((s, e) => s + e.amountUsd, 0);
+                    const matterForInvoice = matters.find(m => m.id === selExp[0]?.matterId);
+                    const clientForInvoice = clients.find(c => c.id === matterForInvoice?.clientId);
+                    return (
+                        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001 }}>
+                            <div className="premium-card fade-in" style={{ width: '100%', maxWidth: '500px', padding: '2.5rem', background: 'white' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                    <h3 style={{ margin: 0, fontWeight: 900 }}>🧾 Facturar Gastos Seleccionados</h3>
+                                    <button onClick={() => setShowInvoiceFromExpenses(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><X size={20}/></button>
+                                </div>
+                                <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+                                    <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Resumen</p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.85rem', color: '#475569' }}>Asunto:</span>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{matterForInvoice?.title ?? '—'}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                        <span style={{ fontSize: '0.85rem', color: '#475569' }}>Cliente:</span>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{clientForInvoice?.name ?? '—'}</span>
+                                    </div>
+                                    <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem', display: 'grid', gap: '0.35rem', marginBottom: '0.75rem' }}>
+                                        {selExp.map((e, i) => (
+                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b' }}>
+                                                <span>• {e.description}</span>
+                                                <span style={{ fontWeight: 700 }}>${e.amountUsd.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.75rem', borderTop: '2px solid #e2e8f0' }}>
+                                        <span style={{ fontWeight: 800 }}>TOTAL</span>
+                                        <span style={{ fontWeight: 900, fontSize: '1.1rem', color: '#6366f1' }}>${subtotal.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                                    <button onClick={() => setShowInvoiceFromExpenses(false)} style={{ padding: '0.75rem 1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: 'white', cursor: 'pointer', fontWeight: 700 }}>Cancelar</button>
+                                    <button
+                                        className="btn-primary"
+                                        disabled={creatingExpenseInvoice || !matterForInvoice || !clientForInvoice}
+                                        onClick={async () => {
+                                            if (!matterForInvoice || !clientForInvoice) { alert('Los gastos deben pertenecer al mismo asunto'); return; }
+                                            setCreatingExpenseInvoice(true);
+                                            try {
+                                                const num = `EXP-${Date.now().toString().slice(-6)}`;
+                                                await invoiceService.save({
+                                                    number: num, matterId: matterForInvoice.id, clientId: clientForInvoice.id,
+                                                    type: 'EXPENSE', status: 'SENT', subtotalUsd: subtotal,
+                                                    taxPct: 0, islrPct: 0,
+                                                    notes: `Gastos procesales: ${selExp.map(e => e.description).join(', ')}`,
+                                                    issuedAt: new Date().toISOString().split('T')[0],
+                                                    dueAt: new Date(Date.now() + 15*864e5).toISOString().split('T')[0],
+                                                });
+                                                setInvoices(await invoiceService.getAll());
+                                                setSelectedExpenses([]);
+                                                setShowInvoiceFromExpenses(false);
+                                                alert(`✅ Factura ${num} generada`);
+                                            } catch(e: any) { alert('Error: ' + (e as any).message); }
+                                            finally { setCreatingExpenseInvoice(false); }
+                                        }}
+                                        style={{ padding: '0.75rem 1.5rem' }}
+                                    >
+                                        {creatingExpenseInvoice ? <RefreshCw size={16}/> : <Receipt size={16}/>}
+                                        {' '}{creatingExpenseInvoice ? 'Generando...' : 'Emitir Factura'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
         );
     };
+
+    const handleExportExpensesPDF = (expList: typeof expenses) => {
+        const doc = new jsPDF();
+        const pw = doc.internal.pageSize.getWidth();
+        const today = new Date().toLocaleDateString('es-VE');
+        doc.setFillColor(99, 102, 241);
+        doc.rect(0, 0, pw, 32, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(15); doc.setFont('helvetica', 'bold');
+        doc.text('LegalDoc VE — Reporte de Gastos Procesales', 14, 14);
+        doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+        doc.text(`Generado: ${today}  |  ${expList.length} registros`, 14, 24);
+        const total = expList.reduce((s, e) => s + e.amountUsd, 0);
+        const pend  = expList.filter(e => !e.isReimbursed && e.paidBy === 'FIRM').reduce((s, e) => s + e.amountUsd, 0);
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+        doc.text(`Total: $${total.toLocaleString()} USD`, 14, 43);
+        doc.text(`Sin reembolsar: $${pend.toLocaleString()} USD`, 100, 43);
+        const catLabel: Record<string,string> = { COURT_FEE:'Aranceles', NOTARY:'Notaría', EXPERT:'Perito', TRAVEL:'Traslados', PRINTING:'Impresiones', APOSTILLE:'Apostilla', OTHER:'Otros' };
+        autoTable(doc, {
+            startY: 50,
+            head: [['Fecha','Asunto','Categoría','Descripción','Pagado por','Monto USD','Reembolsado']],
+            body: expList.map(e => {
+                const m = matters.find(x => x.id === e.matterId);
+                return [e.date, (m?.title ?? '—').substring(0,22), catLabel[e.category]||'Otros', (e.description||'').substring(0,28), e.paidBy==='FIRM'?'Despacho':'Cliente', `$${e.amountUsd.toLocaleString()}`, e.isReimbursed?'Sí':'Pendiente'];
+            }),
+            headStyles: { fillColor: [99,102,241], textColor:255, fontStyle:'bold', fontSize:7.5 },
+            bodyStyles: { fontSize:7.5, textColor:[30,41,59] },
+            alternateRowStyles: { fillColor:[248,250,252] },
+            columnStyles: { 5: { halign:'right', fontStyle:'bold' } },
+            margin: { left:14, right:14 },
+        });
+        const fy = (doc as any).lastAutoTable.finalY + 10;
+        doc.setFontSize(7); doc.setTextColor(148,163,184);
+        doc.text('Documento generado por LegalDoc VE — Sistema de Gestión Legal Venezolano', 14, fy);
+        doc.save(`Gastos_LegalDocVE_${today.replace(/\//g,'-')}.pdf`);
+    };
+
+
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
