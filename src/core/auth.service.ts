@@ -62,7 +62,8 @@ class AuthService {
             role: profile.role,
             avatar: profile.avatar_url,
             isActive: profile.is_active,
-            organizationId: profile.organization_id
+            organizationId: profile.organization_id,
+            permissions: ROLE_PERMISSIONS[profile.role] || []
         };
 
         localStorage.setItem(this.userKey, JSON.stringify(mappedUser));
@@ -91,7 +92,46 @@ class AuthService {
 
     getCurrentUser(): User | null {
         const data = localStorage.getItem(this.userKey);
-        return data ? JSON.parse(data) : null;
+        if (!data) return null;
+        const user = JSON.parse(data) as User;
+        // Validación de integridad: si organizationId está vacío la sesión es inválida
+        if (!user.organizationId) {
+            console.warn('[AuthService] Sesión sin organizationId detectada. Limpiando...');
+            localStorage.removeItem(this.userKey);
+            return null;
+        }
+        return user;
+    }
+
+    /** Sincroniza la sesión si el token de Supabase sigue activo */
+    async syncSession(): Promise<User | null> {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            localStorage.removeItem(this.userKey);
+            return null;
+        }
+        // Re-cargar perfil desde DB para actualizar el cache
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+        if (profile && profile.organization_id) {
+            const user: User = {
+                id: profile.id,
+                email: profile.email,
+                name: profile.name,
+                role: profile.role,
+                avatar: profile.avatar_url,
+                isActive: profile.is_active,
+                organizationId: profile.organization_id,
+                permissions: ROLE_PERMISSIONS[profile.role] || []
+            };
+            localStorage.setItem(this.userKey, JSON.stringify(user));
+            return user;
+        }
+        localStorage.removeItem(this.userKey);
+        return null;
     }
 
     hasPermission(user: User | null, permission: string): boolean {

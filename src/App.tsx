@@ -39,13 +39,34 @@ function App() {
         setExternalToken(token);
     }
 
-    const activeUser = authService.getCurrentUser();
-    setUser(activeUser);
-    if (activeUser) {
-      // Verificar consentimiento RGPD al restaurar sesión
-      rgpdService.hasConsent(activeUser.id).then(has => setRgpdAccepted(has));
-    }
-    setLoading(false);
+    // 2. Sincronizar sesión: valida el token de Supabase y refresca el perfil
+    //    Esto previene el bug de datos vacíos cuando el localStorage está desactualizado
+    const init = async () => {
+      const cachedUser = authService.getCurrentUser();
+      if (cachedUser) {
+        setUser(cachedUser);
+        rgpdService.hasConsent(cachedUser.id).then(has => setRgpdAccepted(has));
+
+        // Resync silencioso en segundo plano para actualizar organizationId si cambió
+        authService.syncSession().then(freshUser => {
+          if (freshUser) setUser(freshUser);
+          else {
+            // Sesión expirada: forzar logout limpio
+            setUser(null);
+          }
+        });
+      } else {
+        // Sin caché: intentar recuperar sesión activa de Supabase
+        const freshUser = await authService.syncSession();
+        if (freshUser) {
+          setUser(freshUser);
+          rgpdService.hasConsent(freshUser.id).then(has => setRgpdAccepted(has));
+        }
+      }
+      setLoading(false);
+    };
+
+    init();
   }, []);
 
   const handleLogin = async (u: User) => {
