@@ -63,7 +63,6 @@ class AuthService {
             avatar: profile.avatar_url,
             isActive: profile.is_active,
             organizationId: profile.organization_id,
-            permissions: ROLE_PERMISSIONS[profile.role] || []
         };
 
         localStorage.setItem(this.userKey, JSON.stringify(mappedUser));
@@ -125,7 +124,6 @@ class AuthService {
                 avatar: profile.avatar_url,
                 isActive: profile.is_active,
                 organizationId: profile.organization_id,
-                permissions: ROLE_PERMISSIONS[profile.role] || []
             };
             localStorage.setItem(this.userKey, JSON.stringify(user));
             return user;

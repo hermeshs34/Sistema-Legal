@@ -5,7 +5,6 @@ import {
     Clock, 
     FileText, 
     TrendingUp, 
-    AlertCircle,
     CheckCircle2,
     Search as SearchIcon,
     Download as DownloadIcon,
@@ -19,12 +18,14 @@ import {
     AlertTriangle,
     Gavel,
     FileSignature,
-    MapPin
+    Receipt,
+    X,
+    Filter
 } from 'lucide-react';
-import { clientService, matterService, invoiceService, timeEntryService, paymentService } from './honorarios.service.ts';
+import { clientService, matterService, invoiceService, timeEntryService, paymentService, expenseService } from './honorarios.service.ts';
 import { contractService } from '../contracts/contract.service.ts';
 import { expedienteService } from '../expedientes/expediente.service.ts';
-import type { Client, Matter, Invoice, TimeEntry, PaymentMethod } from './types.ts';
+import type { Client, Matter, Invoice, TimeEntry, PaymentMethod, MatterExpense, ExpenseCategory } from './types.ts';
 import type { Contract } from '../contracts/types.ts';
 import type { Expediente } from '../expedientes/types.ts';
 import { jsPDF } from 'jspdf';
@@ -39,7 +40,7 @@ const inputStyle: React.CSSProperties = {
     transition: 'all 0.2s',
 };
 
-type Tab = 'DASHBOARD' | 'CLIENTES' | 'CASOS' | 'TIME' | 'FACTURAS';
+type Tab = 'DASHBOARD' | 'CLIENTES' | 'CASOS' | 'TIME' | 'FACTURAS' | 'GASTOS';
 
 export const HonorariosView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
@@ -50,7 +51,22 @@ export const HonorariosView: React.FC = () => {
     const [matters, setMatters] = useState<Matter[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+    const [expenses, setExpenses] = useState<MatterExpense[]>([]);
     const [lawyers, setLawyers] = useState<{id: string, name: string}[]>([]);
+
+    // Expense UI states
+    const [showExpenseModal, setShowExpenseModal] = useState(false);
+    const [expenseFilterMatter, setExpenseFilterMatter] = useState('');
+    const [expenseForm, setExpenseForm] = useState<Partial<MatterExpense>>({
+        matterId: '',
+        date: new Date().toISOString().split('T')[0],
+        description: '',
+        category: 'OTHER',
+        amountUsd: 0,
+        paidBy: 'FIRM',
+        isReimbursed: false
+    });
+    const [savingExpense, setSavingExpense] = useState(false);
     
     // Sync UI states
     const [showSyncModal, setShowSyncModal] = useState(false);
@@ -152,6 +168,13 @@ export const HonorariosView: React.FC = () => {
                 setMatters(m);
                 setInvoices(i);
                 setTimeEntries(t);
+
+                // Cargar gastos de todos los asuntos activos
+                if (m.length > 0) {
+                    const expPromises = m.map(matter => expenseService.getByMatter(matter.id));
+                    const expArrays = await Promise.all(expPromises);
+                    setExpenses(expArrays.flat());
+                }
             } catch (error) {
                 console.error("Error loading honorarios data:", error);
             } finally {
@@ -779,6 +802,207 @@ export const HonorariosView: React.FC = () => {
         );
     };
 
+    // ── GASTOS ────────────────────────────────────────────
+    const EXPENSE_CATEGORIES: Record<string, { label: string; color: string; icon: string }> = {
+        COURT_FEE:  { label: 'Aranceles / Tasas',   color: '#dc2626', icon: '⚖️' },
+        NOTARY:     { label: 'Notaría',              color: '#7c3aed', icon: '📜' },
+        EXPERT:     { label: 'Perito / Experto',     color: '#0284c7', icon: '🔬' },
+        TRAVEL:     { label: 'Traslados',            color: '#059669', icon: '🚗' },
+        PRINTING:   { label: 'Impresiones',          color: '#d97706', icon: '🖨️' },
+        APOSTILLE:  { label: 'Apostilla',            color: '#db2777', icon: '🌐' },
+        OTHER:      { label: 'Otros',                color: '#64748b', icon: '📎' },
+    };
+
+    const handleSaveExpense = async () => {
+        if (!expenseForm.matterId || !expenseForm.description || !expenseForm.amountUsd) return;
+        setSavingExpense(true);
+        try {
+            await expenseService.save(expenseForm);
+            // Recargar
+            const expPromises = matters.map(m => expenseService.getByMatter(m.id));
+            const expArrays = await Promise.all(expPromises);
+            setExpenses(expArrays.flat());
+            setShowExpenseModal(false);
+            setExpenseForm({ matterId: '', date: new Date().toISOString().split('T')[0], description: '', category: 'OTHER', amountUsd: 0, paidBy: 'FIRM', isReimbursed: false });
+        } catch (e: any) {
+            alert('Error al guardar gasto: ' + e.message);
+        } finally {
+            setSavingExpense(false);
+        }
+    };
+
+    const renderExpenses = () => {
+        const filtered = expenses.filter(e => 
+            !expenseFilterMatter || e.matterId === expenseFilterMatter
+        );
+        const totalUsd = filtered.reduce((s, e) => s + e.amountUsd, 0);
+        const byFirm   = filtered.filter(e => e.paidBy === 'FIRM').reduce((s, e) => s + e.amountUsd, 0);
+        const byClient = filtered.filter(e => e.paidBy === 'CLIENT').reduce((s, e) => s + e.amountUsd, 0);
+        const pending  = filtered.filter(e => !e.isReimbursed && e.paidBy === 'FIRM').reduce((s, e) => s + e.amountUsd, 0);
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* KPIs */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
+                    {[
+                        { label: 'Total Gastos', value: `$${totalUsd.toLocaleString()}`, color: '#6366f1', sub: `${filtered.length} registros` },
+                        { label: 'Pagados por Despacho', value: `$${byFirm.toLocaleString()}`, color: '#dc2626', sub: 'Financiados por el despacho' },
+                        { label: 'Pagados por Cliente', value: `$${byClient.toLocaleString()}`, color: '#059669', sub: 'A cargo del cliente' },
+                        { label: 'Sin Reembolsar', value: `$${pending.toLocaleString()}`, color: '#d97706', sub: 'Pendiente de reembolso' },
+                    ].map((kpi, i) => (
+                        <div key={i} className="premium-card" style={{ padding: '1.5rem', borderLeft: `4px solid ${kpi.color}` }}>
+                            <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{kpi.label}</p>
+                            <p style={{ margin: '0.5rem 0 0', fontSize: '1.6rem', fontWeight: 900, color: kpi.color }}>{kpi.value}</p>
+                            <p style={{ margin: '0.25rem 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>{kpi.sub}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Toolbar */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <Filter size={16} color="#64748b" />
+                        <select
+                            value={expenseFilterMatter}
+                            onChange={e => setExpenseFilterMatter(e.target.value)}
+                            style={{ ...inputStyle, width: '260px', padding: '0.6rem 1rem' }}
+                        >
+                            <option value="">— Todos los asuntos —</option>
+                            {matters.map(m => (
+                                <option key={m.id} value={m.id}>{m.title}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <button
+                        className="btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onClick={() => {
+                            setExpenseForm({ matterId: expenseFilterMatter || '', date: new Date().toISOString().split('T')[0], description: '', category: 'OTHER', amountUsd: 0, paidBy: 'FIRM', isReimbursed: false });
+                            setShowExpenseModal(true);
+                        }}
+                    >
+                        <Plus size={18}/> Registrar Gasto
+                    </button>
+                </div>
+
+                {/* Tabla */}
+                <div className="premium-card" style={{ overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr style={{ background: '#f8fafc' }}>
+                                {['Fecha', 'Asunto', 'Categoría', 'Descripción', 'Pagado por', 'Monto USD', 'Reembolsado', ''].map((h, i) => (
+                                    <th key={i} style={{ padding: '1rem', textAlign: 'left', fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtered.length === 0 ? (
+                                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No hay gastos registrados. Pulsa «Registrar Gasto» para comenzar.</td></tr>
+                            ) : filtered.map(exp => {
+                                const cat = EXPENSE_CATEGORIES[exp.category] || EXPENSE_CATEGORIES.OTHER;
+                                const matter = matters.find(m => m.id === exp.matterId);
+                                return (
+                                    <tr key={exp.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                        <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: '#64748b' }}>{exp.date}</td>
+                                        <td style={{ padding: '0.875rem 1rem', fontSize: '0.82rem', fontWeight: 600, color: '#1e293b' }}>{matter?.title ?? '—'}</td>
+                                        <td style={{ padding: '0.875rem 1rem' }}>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: `${cat.color}15`, color: cat.color, fontWeight: 700, fontSize: '0.72rem', padding: '3px 10px', borderRadius: '20px' }}>
+                                                {cat.icon} {cat.label}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '0.875rem 1rem', fontSize: '0.82rem', maxWidth: '200px' }}>{exp.description}</td>
+                                        <td style={{ padding: '0.875rem 1rem' }}>
+                                            <span style={{ fontSize: '0.76rem', fontWeight: 700, color: exp.paidBy === 'FIRM' ? '#dc2626' : '#059669' }}>
+                                                {exp.paidBy === 'FIRM' ? '🏢 Despacho' : '👤 Cliente'}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '0.875rem 1rem', fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>${exp.amountUsd.toLocaleString()}</td>
+                                        <td style={{ padding: '0.875rem 1rem' }}>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: exp.isReimbursed ? '#059669' : '#d97706' }}>
+                                                {exp.isReimbursed ? '✓ Sí' : '⏳ Pendiente'}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '0.875rem 1rem' }}>
+                                            <button
+                                                onClick={() => { setExpenseForm(exp); setShowExpenseModal(true); }}
+                                                style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#6366f1' }}
+                                            ><Edit2 size={14}/></button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Modal */}
+                {showExpenseModal && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+                        <div className="premium-card fade-in" style={{ width: '100%', maxWidth: '520px', padding: '2.5rem', background: 'white' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                <h3 style={{ margin: 0, fontWeight: 900, fontSize: '1.2rem' }}>
+                                    {expenseForm.id ? '✏️ Editar Gasto' : '🧾 Registrar Gasto'}
+                                </h3>
+                                <button onClick={() => setShowExpenseModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><X size={20}/></button>
+                            </div>
+                            <div style={{ display: 'grid', gap: '1rem' }}>
+                                <div>
+                                    <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>ASUNTO / CASO *</label>
+                                    <select value={expenseForm.matterId || ''} onChange={e => setExpenseForm({...expenseForm, matterId: e.target.value})} style={inputStyle}>
+                                        <option value="">Seleccionar asunto...</option>
+                                        {matters.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+                                    </select>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <div>
+                                        <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>FECHA *</label>
+                                        <input type="date" value={expenseForm.date || ''} onChange={e => setExpenseForm({...expenseForm, date: e.target.value})} style={inputStyle}/>
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>MONTO USD *</label>
+                                        <input type="number" min="0" step="0.01" value={expenseForm.amountUsd || 0} onChange={e => setExpenseForm({...expenseForm, amountUsd: parseFloat(e.target.value) || 0})} style={inputStyle}/>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>CATEGORÍA</label>
+                                    <select value={expenseForm.category || 'OTHER'} onChange={e => setExpenseForm({...expenseForm, category: e.target.value as ExpenseCategory})} style={inputStyle}>
+                                        {Object.entries(EXPENSE_CATEGORIES).map(([k, v]) => (
+                                            <option key={k} value={k}>{v.icon} {v.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>DESCRIPCIÓN *</label>
+                                    <input value={expenseForm.description || ''} onChange={e => setExpenseForm({...expenseForm, description: e.target.value})} placeholder="Ej: Arancel de presentación ante tribunal..." style={inputStyle}/>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <div>
+                                        <label style={{ fontSize: '0.73rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>PAGADO POR</label>
+                                        <select value={expenseForm.paidBy || 'FIRM'} onChange={e => setExpenseForm({...expenseForm, paidBy: e.target.value as 'FIRM'|'CLIENT'})} style={inputStyle}>
+                                            <option value="FIRM">🏢 Despacho</option>
+                                            <option value="CLIENT">👤 Cliente</option>
+                                        </select>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingTop: '1.5rem' }}>
+                                        <input type="checkbox" id="isReimbursed" checked={expenseForm.isReimbursed || false} onChange={e => setExpenseForm({...expenseForm, isReimbursed: e.target.checked})} style={{ width: '16px', height: '16px' }}/>
+                                        <label htmlFor="isReimbursed" style={{ fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>Ya reembolsado</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
+                                <button onClick={() => setShowExpenseModal(false)} style={{ padding: '0.75rem 1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: 'white', cursor: 'pointer', fontWeight: 700 }}>Cancelar</button>
+                                <button onClick={handleSaveExpense} disabled={savingExpense} className="btn-primary" style={{ padding: '0.75rem 1.5rem' }}>
+                                    {savingExpense ? <RefreshCw size={16} className="animate-spin"/> : <Receipt size={16}/>}
+                                    {' '}{savingExpense ? 'Guardando...' : 'Guardar Gasto'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -804,7 +1028,8 @@ export const HonorariosView: React.FC = () => {
                     { id: 'CLIENTES', label: 'Clientes', icon: Users },
                     { id: 'CASOS', label: 'Casos / Asuntos', icon: Briefcase },
                     { id: 'TIME', label: 'Time Tracking', icon: Clock },
-                    { id: 'FACTURAS', label: 'Facturación', icon: FileText }
+                    { id: 'FACTURAS', label: 'Facturación', icon: FileText },
+                    { id: 'GASTOS', label: 'Gastos', icon: Receipt }
                 ].map(tab => (
                     <button 
                         key={tab.id}
@@ -835,6 +1060,7 @@ export const HonorariosView: React.FC = () => {
                     {activeTab === 'CASOS' && renderMatters()}
                     {activeTab === 'TIME' && renderTimeTracking()}
                     {activeTab === 'FACTURAS' && renderInvoices()}
+                    {activeTab === 'GASTOS' && renderExpenses()}
                 </div>
             )}
 
