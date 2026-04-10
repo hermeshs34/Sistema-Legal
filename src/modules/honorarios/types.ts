@@ -42,16 +42,20 @@ export interface Matter {
     expedienteId?: string;
     contractId?: string;
     feeType: FeeType;
-    budgetUsd: number;
+    currency: Currency;        // Nueva: Moneda del presupuesto
+    budget: number;          // Nueva: Monto nominal
+    budgetUsd: number;       // Base USD para consolidación
+    retainer: number;        // Nueva
     retainerUsd: number;
     contingencyPct: number;
+    hourlyRate: number;      // Nueva
     hourlyRateUsd: number;
     openedAt: string;
     closedAt?: string;
     organizationId: string;
     createdAt: string;
     updatedAt: string;
-    // Calculados
+    // Calculados (Siempre en USD para motor de consolidación)
     totalHours?: number;
     totalBilledUsd?: number;
     totalPaidUsd?: number;
@@ -72,7 +76,10 @@ export interface TimeEntry {
     description: string;
     category: TimeCategory;
     hours: number;
-    rateUsd: number;
+    currency: Currency;    // Nueva
+    rate: number;          // Nueva: Monto nominal
+    rateUsd: number;       // Base USD
+    amount: number;        // Nueva: Monto nominal
     amountUsd: number;     // Columna generada
     isBillable: boolean;
     isInvoiced: boolean;
@@ -116,14 +123,26 @@ export interface Invoice {
     clientName?: string;   // JOIN
     type: InvoiceType;
     status: InvoiceStatus;
-    subtotalUsd: number;
+    
+    currency: Currency;
+    exchangeRate: number;
+    
+    subtotal: number;
     taxPct: number;
-    taxUsd: number;
+    tax: number;
     islrPct: number;
+    islr: number;
+    total: number;
+    paid: number;
+    balance: number;
+
+    subtotalUsd: number;
+    taxUsd: number;
     islrUsd: number;
     totalUsd: number;
     paidUsd: number;
     balanceUsd: number;
+    
     issuedAt: string;
     dueAt?: string;
     paidAt?: string;
@@ -134,6 +153,12 @@ export interface Invoice {
     updatedAt: string;
 }
 
+export const CURRENCY_SYMBOLS: Record<Currency, string> = {
+    USD: '$',
+    EUR: '€',
+    VES: 'Bs.'
+};
+
 // ── Pagos ────────────────────────────────────────────────
 export type PaymentMethod = 'TRANSFER' | 'CASH' | 'CHECK' | 'ZELLE' | 'CRYPTO' | 'OTHER';
 
@@ -142,7 +167,10 @@ export interface Payment {
     invoiceId: string;
     clientId: string;
     clientName?: string;  // JOIN
-    amountUsd: number;
+    currency: Currency;
+    amount: number;       // Monto en la moneda del pago
+    amountUsd: number;    // Equivalente en USD
+    exchangeRate?: number;
     method: PaymentMethod;
     reference?: string;
     paidAt: string;
@@ -164,4 +192,17 @@ export interface MatterFinancialSummary {
     totalPaidUsd: number;
     balanceUsd: number;
     budgetUsedPct: number;
+}
+
+// ── Tasas de Cambio ──────────────────────────────────────
+export interface ExchangeRate {
+    id: string;
+    currencyFrom: 'USD' | 'EUR' | 'VES';
+    currencyTo:   'USD' | 'EUR' | 'VES';
+    rate: number;
+    effectiveDate: string;
+    source: string;
+    notes?: string;
+    organizationId: string;
+    createdAt: string;
 }

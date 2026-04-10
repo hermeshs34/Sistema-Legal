@@ -5,7 +5,7 @@
 
 import { supabase } from '../../core/supabase.ts';
 import { authService } from '../../core/auth.service.ts';
-import type { Client, Matter, TimeEntry, MatterExpense, Invoice, Payment, MatterFinancialSummary } from './types.ts';
+import type { Client, Matter, TimeEntry, MatterExpense, Invoice, Payment, MatterFinancialSummary, ExchangeRate } from './types.ts';
 
 // ────────────────────────────────────────────────────────
 // CLIENTES
@@ -130,6 +130,16 @@ class MatterService {
 
     async save(matter: Partial<Matter>): Promise<Matter> {
         const orgId = this.orgId();
+        const currency = matter.currency ?? 'USD';
+        const budget = matter.budget ?? matter.budgetUsd ?? 0;
+        const rate = matter.exchangeRate || 1;
+        
+        const budgetUsd = currency === 'USD' ? budget : (budget / rate);
+        const hourlyRate = matter.hourlyRate ?? matter.hourlyRateUsd ?? 0;
+        const hourlyRateUsd = currency === 'USD' ? hourlyRate : (hourlyRate / rate);
+        const retainer = matter.retainer ?? matter.retainerUsd ?? 0;
+        const retainerUsd = currency === 'USD' ? retainer : (retainer / rate);
+
         const payload = {
             title: matter.title,
             code: matter.code,
@@ -141,10 +151,16 @@ class MatterService {
             expediente_id: matter.expedienteId,
             contract_id: matter.contractId,
             fee_type: matter.feeType ?? 'HOURLY',
-            budget_usd: matter.budgetUsd ?? 0,
-            retainer_usd: matter.retainerUsd ?? 0,
+            
+            currency,
+            budget,
+            budget_usd: budgetUsd,
+            retainer,
+            retainer_usd: retainerUsd,
             contingency_pct: matter.contingencyPct ?? 0,
-            hourly_rate_usd: matter.hourlyRateUsd ?? 0,
+            hourly_rate: hourlyRate,
+            hourly_rate_usd: hourlyRateUsd,
+            
             opened_at: matter.openedAt,
             closed_at: matter.closedAt,
             organization_id: orgId,
@@ -222,10 +238,14 @@ class MatterService {
             expedienteId: r.expediente_id,
             contractId: r.contract_id,
             feeType: r.fee_type,
-            budgetUsd: Number(r.budget_usd),
-            retainerUsd: Number(r.retainer_usd),
-            contingencyPct: Number(r.contingency_pct),
-            hourlyRateUsd: Number(r.hourly_rate_usd),
+            currency: r.currency || 'USD',
+            budget: Number(r.budget || r.budget_usd || 0),
+            budgetUsd: Number(r.budget_usd || 0),
+            retainer: Number(r.retainer || r.retainer_usd || 0),
+            retainerUsd: Number(r.retainer_usd || 0),
+            contingencyPct: Number(r.contingency_pct || 0),
+            hourlyRate: Number(r.hourly_rate || r.hourly_rate_usd || 0),
+            hourlyRateUsd: Number(r.hourly_rate_usd || 0),
             openedAt: r.opened_at,
             closedAt: r.closed_at,
             organizationId: r.organization_id,
@@ -267,6 +287,15 @@ class TimeEntryService {
     async save(entry: Partial<TimeEntry>): Promise<TimeEntry> {
         const orgId = this.orgId();
         const user = authService.getCurrentUser();
+        const currency = entry.currency ?? 'USD';
+        const hours = entry.hours ?? 0;
+        const rate = entry.rate ?? entry.rateUsd ?? 0;
+        const exRate = entry.exchangeRate || 1;
+        
+        const rateUsd = currency === 'USD' ? rate : (rate / exRate);
+        const amount = hours * rate;
+        const amountUsd = hours * rateUsd;
+
         const payload = {
             matter_id: entry.matterId,
             lawyer_id: entry.lawyerId,
@@ -274,8 +303,12 @@ class TimeEntryService {
             date: entry.date ?? new Date().toISOString().split('T')[0],
             description: entry.description,
             category: entry.category ?? 'GENERAL',
-            hours: entry.hours,
-            rate_usd: entry.rateUsd,
+            hours,
+            currency,
+            rate,
+            rate_usd: rateUsd,
+            amount,
+            amount_usd: amountUsd,
             is_billable: entry.isBillable ?? true,
             organization_id: orgId,
         };
@@ -320,8 +353,11 @@ class TimeEntryService {
             description: r.description,
             category: r.category,
             hours: Number(r.hours),
-            rateUsd: Number(r.rate_usd),
-            amountUsd: Number(r.amount_usd),
+            currency: r.currency || 'USD',
+            rate: Number(r.rate || r.rate_usd || 0),
+            rateUsd: Number(r.rate_usd || 0),
+            amount: Number(r.amount || r.amount_usd || 0),
+            amountUsd: Number(r.amount_usd || 0),
             isBillable: r.is_billable,
             isInvoiced: r.is_invoiced,
             invoiceId: r.invoice_id,
@@ -428,10 +464,20 @@ class InvoiceService {
 
     async save(invoice: Partial<Invoice>): Promise<Invoice> {
         const orgId = this.orgId();
-        const subtotal = invoice.subtotalUsd ?? 0;
-        const taxUsd = subtotal * ((invoice.taxPct ?? 0) / 100);
-        const islrUsd = subtotal * ((invoice.islrPct ?? 0) / 100);
-        const total = subtotal + taxUsd - islrUsd;
+        const user = authService.getCurrentUser();
+        const currency = invoice.currency ?? 'USD';
+        const rate = (invoice.exchangeRate || 1);
+        
+        const subtotal = invoice.subtotal ?? invoice.subtotalUsd ?? 0;
+        const tax = subtotal * ((invoice.taxPct ?? 0) / 100);
+        const islr = subtotal * ((invoice.islrPct ?? 0) / 100);
+        const total = subtotal + tax - islr;
+        
+        const subtotalUsd = currency === 'USD' ? subtotal : (subtotal / rate);
+        const taxUsd      = currency === 'USD' ? tax : (tax / rate);
+        const islrUsd     = currency === 'USD' ? islr : (islr / rate);
+        const totalUsd    = currency === 'USD' ? total : (total / rate);
+        const paidUsd     = currency === 'USD' ? (invoice.paid ?? 0) : ((invoice.paid ?? 0) / rate);
 
         const payload = {
             number: invoice.number ?? `FACT-${Date.now()}`,
@@ -439,18 +485,31 @@ class InvoiceService {
             client_id: invoice.clientId,
             type: invoice.type ?? 'PROGRESS',
             status: invoice.status ?? 'DRAFT',
-            subtotal_usd: subtotal,
+            
+            currency,
+            exchange_rate: rate,
+            
+            subtotal,
             tax_pct: invoice.taxPct ?? 0,
-            tax_usd: taxUsd,
+            tax,
             islr_pct: invoice.islrPct ?? 0,
+            islr,
+            total,
+            paid: invoice.paid ?? 0,
+            balance: total - (invoice.paid ?? 0),
+
+            subtotal_usd: subtotalUsd,
+            tax_usd: taxUsd,
             islr_usd: islrUsd,
-            total_usd: total,
-            paid_usd: invoice.paidUsd ?? 0,
-            balance_usd: total - (invoice.paidUsd ?? 0),
+            total_usd: totalUsd,
+            paid_usd: paidUsd,
+            balance_usd: totalUsd - paidUsd,
+
             issued_at: invoice.issuedAt ?? new Date().toISOString().split('T')[0],
             due_at: invoice.dueAt,
             notes: invoice.notes,
             organization_id: orgId,
+            created_by: user?.id,
         };
 
         if (invoice.id) {
@@ -484,12 +543,31 @@ class InvoiceService {
             id: r.id, number: r.number, matterId: r.matter_id, matterTitle: r.matters?.title,
             clientId: r.client_id, clientName: r.clients?.name,
             type: r.type, status: r.status,
-            subtotalUsd: Number(r.subtotal_usd), taxPct: Number(r.tax_pct), taxUsd: Number(r.tax_usd),
-            islrPct: Number(r.islr_pct), islrUsd: Number(r.islr_usd),
-            totalUsd: Number(r.total_usd), paidUsd: Number(r.paid_usd), balanceUsd: Number(r.balance_usd),
-            issuedAt: r.issued_at, dueAt: r.due_at, paidAt: r.paid_at,
-            notes: r.notes, organizationId: r.organization_id, createdBy: r.created_by,
-            createdAt: r.created_at, updatedAt: r.updated_at,
+            currency: r.currency || 'USD',
+            exchangeRate: Number(r.exchange_rate || 1),
+            subtotalUsd: Number(r.subtotal_usd || 0),
+            taxPct: Number(r.tax_pct || 0),
+            taxUsd: Number(r.tax_usd || 0),
+            islrPct: Number(r.islr_pct || 0),
+            islrUsd: Number(r.islr_usd || 0),
+            totalUsd: Number(r.total_usd || 0),
+            paidUsd: Number(r.paid_usd || 0),
+            balanceUsd: Number(r.balance_usd || 0),
+            // Fallback nominal: Si las nuevas columnas son 0 o null, usamos USD
+            subtotal: Number(r.subtotal) || Number(r.subtotal_usd) || 0,
+            tax: Number(r.tax) || Number(r.tax_usd) || 0,
+            islr: Number(r.islr) || Number(r.islr_usd) || 0,
+            total: Number(r.total) || Number(r.total_usd) || 0,
+            paid: Number(r.paid) || Number(r.paid_usd) || 0,
+            balance: Number(r.balance) || Number(r.balance_usd) || 0,
+            issuedAt: r.issued_at,
+            dueAt: r.due_at,
+            paidAt: r.paid_at,
+            notes: r.notes,
+            organizationId: r.organization_id,
+            createdBy: r.created_by,
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
         };
     }
 }
@@ -504,12 +582,25 @@ class PaymentService {
 
     async save(payment: Partial<Payment>): Promise<Payment> {
         const orgId = this.orgId();
+        const user = authService.getCurrentUser();
+        
+        // Calcular monto USD si viene en otra moneda
+        let amountUsd = payment.amountUsd || 0;
+        if (payment.currency && payment.currency !== 'USD' && payment.amount) {
+            amountUsd = payment.amount / (payment.exchangeRate || 1);
+        } else if (payment.currency === 'USD') {
+            payment.amount = payment.amountUsd;
+        }
+
         const { data, error } = await supabase
             .from('payments')
             .insert({
                 invoice_id: payment.invoiceId,
                 client_id: payment.clientId,
-                amount_usd: payment.amountUsd,
+                currency: payment.currency || 'USD',
+                amount: payment.amount || payment.amountUsd,
+                exchange_rate: payment.exchangeRate || 1,
+                amount_usd: amountUsd,
                 method: payment.method ?? 'TRANSFER',
                 reference: payment.reference,
                 paid_at: payment.paidAt ?? new Date().toISOString().split('T')[0],
@@ -520,20 +611,148 @@ class PaymentService {
         if (error) throw error;
 
         // Actualizar saldo de la factura
-        const inv = await supabase.from('invoices').select('paid_usd, total_usd').eq('id', payment.invoiceId!).single();
+        const inv = await supabase.from('invoices')
+            .select('paid_usd, total_usd, paid, total, currency, exchange_rate')
+            .eq('id', payment.invoiceId!)
+            .maybeSingle();
+            
         if (inv.data) {
-            const newPaid = Number(inv.data.paid_usd) + (payment.amountUsd ?? 0);
-            const newBalance = Number(inv.data.total_usd) - newPaid;
-            const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIAL';
-            await supabase.from('invoices').update({ paid_usd: newPaid, balance_usd: newBalance, status: newStatus, paid_at: newBalance <= 0 ? data.paid_at : null, updated_at: new Date().toISOString() }).eq('id', payment.invoiceId!);
+            const newPaidUsd = Number(inv.data.paid_usd) + amountUsd;
+            const newBalanceUsd = Number(inv.data.total_usd) - newPaidUsd;
+            
+            // Si la moneda del pago coincide con la de la factura, actualizamos también el monto nominal
+            const isSameCurrency = inv.data.currency === (payment.currency || 'USD');
+            const newPaidNominal = Number(inv.data.paid) + (isSameCurrency ? (payment.amount || 0) : (amountUsd * Number(inv.data.exchange_rate || 1)));
+            const newBalanceNominal = Number(inv.data.total) - newPaidNominal;
+
+            const newStatus = newBalanceUsd <= 0.01 ? 'PAID' : 'PARTIAL';
+            await supabase.from('invoices').update({ 
+                paid_usd: newPaidUsd, 
+                balance_usd: Math.max(0, newBalanceUsd), 
+                paid: newPaidNominal,
+                balance: Math.max(0, newBalanceNominal),
+                status: newStatus, 
+                paid_at: (newBalanceUsd <= 0.01) ? data.paid_at : null, 
+                updated_at: new Date().toISOString() 
+            }).eq('id', payment.invoiceId!);
         }
 
+        return this.map(data);
+    }
+
+    private map(data: any): Payment {
         return {
-            id: data.id, invoiceId: data.invoice_id, clientId: data.client_id,
-            clientName: data.clients?.name, amountUsd: Number(data.amount_usd),
-            method: data.method, reference: data.reference, paidAt: data.paid_at,
-            notes: data.notes, organizationId: data.organization_id,
-            createdBy: data.created_by, createdAt: data.created_at,
+            id: data.id, 
+            invoiceId: data.invoice_id, 
+            clientId: data.client_id,
+            clientName: data.clients?.name, 
+            currency: data.currency || 'USD',
+            amountUsd: Number(data.amount_usd || 0),
+            amount: Number(data.amount) || Number(data.amount_usd) || 0,
+            exchangeRate: Number(data.exchange_rate || 1),
+            method: data.method, 
+            reference: data.reference, 
+            paidAt: data.paid_at,
+            notes: data.notes, 
+            organizationId: data.organization_id,
+            createdBy: data.created_by, 
+            createdAt: data.created_at,
+        };
+    }
+}
+
+// ────────────────────────────────────────────────────────
+// TASAS DE CAMBIO
+// ────────────────────────────────────────────────────────
+class ExchangeRateService {
+    private orgId(): string {
+        return authService.getCurrentUser()?.organizationId ?? '';
+    }
+
+    /** Obtiene la tasa más reciente para un par de monedas */
+    async getLatestRate(from: string, to: string): Promise<number> {
+        const { data } = await supabase
+            .from('exchange_rates')
+            .select('rate')
+            .eq('currency_from', from)
+            .eq('currency_to', to)
+            .eq('organization_id', this.orgId())
+            .order('effective_date', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        return data ? Number(data.rate) : 0;
+    }
+
+    /** Obtiene las tasas vigentes para todos los pares */
+    async getLatestAll(): Promise<Record<string, number>> {
+        const pairs = [
+            ['USD','VES'], ['VES','USD'],
+            ['EUR','VES'], ['VES','EUR'],
+            ['EUR','USD'], ['USD','EUR'],
+        ];
+        const results: Record<string, number> = {};
+        await Promise.all(pairs.map(async ([from, to]) => {
+            const rate = await this.getLatestRate(from, to);
+            results[`${from}_${to}`] = rate;
+        }));
+        return results;
+    }
+
+    /** Historial de tasas (más recientes primero) */
+    async getAll(): Promise<ExchangeRate[]> {
+        const { data, error } = await supabase
+            .from('exchange_rates')
+            .select('*')
+            .eq('organization_id', this.orgId())
+            .order('effective_date', { ascending: false })
+            .limit(100);
+        if (error) throw error;
+        return (data ?? []).map(this.map);
+    }
+
+    async save(rate: Partial<ExchangeRate>): Promise<ExchangeRate> {
+        const orgId = this.orgId();
+        const user = authService.getCurrentUser();
+        const payload = {
+            currency_from:  rate.currencyFrom,
+            currency_to:    rate.currencyTo,
+            rate:           rate.rate,
+            effective_date: rate.effectiveDate ?? new Date().toISOString().split('T')[0],
+            source:         rate.source ?? 'MANUAL',
+            notes:          rate.notes,
+            organization_id: orgId,
+            created_by:     user?.id,
+        };
+        if (rate.id) {
+            const { data, error } = await supabase.from('exchange_rates').update(payload).eq('id', rate.id).select().single();
+            if (error) throw error;
+            return this.map(data);
+        } else {
+            // Upsert por fecha + par + org
+            const { data, error } = await supabase.from('exchange_rates')
+                .upsert(payload, { onConflict: 'currency_from,currency_to,effective_date,organization_id' })
+                .select().single();
+            if (error) throw error;
+            return this.map(data);
+        }
+    }
+
+    async delete(id: string): Promise<void> {
+        const { error } = await supabase.from('exchange_rates').delete().eq('id', id).eq('organization_id', this.orgId());
+        if (error) throw error;
+    }
+
+    private map(r: any): ExchangeRate {
+        return {
+            id: r.id,
+            currencyFrom: r.currency_from,
+            currencyTo: r.currency_to,
+            rate: Number(r.rate),
+            effectiveDate: r.effective_date,
+            source: r.source ?? 'MANUAL',
+            notes: r.notes,
+            organizationId: r.organization_id,
+            createdAt: r.created_at,
         };
     }
 }
@@ -541,9 +760,10 @@ class PaymentService {
 // ────────────────────────────────────────────────────────
 // EXPORTS
 // ────────────────────────────────────────────────────────
-export const clientService    = new ClientService();
-export const matterService    = new MatterService();
-export const timeEntryService = new TimeEntryService();
-export const expenseService   = new ExpenseService();
-export const invoiceService   = new InvoiceService();
-export const paymentService   = new PaymentService();
+export const clientService       = new ClientService();
+export const matterService       = new MatterService();
+export const timeEntryService    = new TimeEntryService();
+export const expenseService      = new ExpenseService();
+export const invoiceService      = new InvoiceService();
+export const paymentService      = new PaymentService();
+export const exchangeRateService = new ExchangeRateService();

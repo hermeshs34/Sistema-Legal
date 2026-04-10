@@ -23,12 +23,34 @@ import {
     Filter,
     Paperclip,
     ExternalLink,
-    FileDown
+    FileDown,
+    DollarSign,
+    ArrowLeftRight,
+    TrendingDown,
+    Info,
+    Calendar,
+    Globe
 } from 'lucide-react';
-import { clientService, matterService, invoiceService, timeEntryService, paymentService, expenseService } from './honorarios.service.ts';
+import { 
+    BarChart, 
+    Bar, 
+    XAxis, 
+    YAxis, 
+    CartesianGrid, 
+    Tooltip, 
+    Legend, 
+    ResponsiveContainer, 
+    PieChart, 
+    Pie, 
+    Cell,
+    LineChart,
+    Line
+} from 'recharts';
+import { clientService, matterService, invoiceService, timeEntryService, paymentService, expenseService, exchangeRateService } from './honorarios.service.ts';
 import { contractService } from '../contracts/contract.service.ts';
 import { expedienteService } from '../expedientes/expediente.service.ts';
-import type { Client, Matter, Invoice, TimeEntry, PaymentMethod, MatterExpense, ExpenseCategory } from './types.ts';
+import type { Client, Matter, Invoice, TimeEntry, PaymentMethod, MatterExpense, ExpenseCategory, ExchangeRate, Currency } from './types.ts';
+import { CURRENCY_SYMBOLS } from './types.ts';
 import type { Contract } from '../contracts/types.ts';
 import type { Expediente } from '../expedientes/types.ts';
 import { jsPDF } from 'jspdf';
@@ -76,6 +98,16 @@ export const HonorariosView: React.FC = () => {
     const [showInvoiceFromExpenses, setShowInvoiceFromExpenses] = useState(false);
     const [creatingExpenseInvoice, setCreatingExpenseInvoice] = useState(false);
     const [expenseCurrency, setExpenseCurrency] = useState<'USD'|'EUR'|'VES'>('USD');
+    // Exchange Rates
+    const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
+    const [presentationCurrency, setPresentationCurrency] = useState<Currency>('USD');
+    const [latestRates, setLatestRates] = useState<Record<string, number>>({});
+    const [showRatesModal, setShowRatesModal] = useState(false);
+    const [rateForm, setRateForm] = useState<Partial<ExchangeRate>>({ currencyFrom:'USD', currencyTo:'VES', rate:0, source:'MANUAL' });
+    const [savingRate, setSavingRate] = useState(false);
+    const [convertAmount, setConvertAmount] = useState(1);
+    const [convertFrom, setConvertFrom] = useState<'USD'|'EUR'|'VES'>('USD');
+    const [convertTo, setConvertTo] = useState<'USD'|'EUR'|'VES'>('VES');
     
     // Sync UI states
     const [showSyncModal, setShowSyncModal] = useState(false);
@@ -88,19 +120,6 @@ export const HonorariosView: React.FC = () => {
     const [syncClientId, setSyncClientId] = useState('');
     const [syncing, setSyncing] = useState(false);
     
-    // Matter Editing UI
-    const [showMatterModal, setShowMatterModal] = useState(false);
-    const [matterForm, setMatterForm] = useState<Partial<Matter>>({
-        title: '',
-        code: '',
-        type: 'LITIGATION',
-        status: 'ACTIVE',
-        feeType: 'FIXED',
-        budgetUsd: 0,
-        clientId: ''
-    });
-    const [savingMatter, setSavingMatter] = useState(false);
-
     // Client Creation UI
     const [showClientModal, setShowClientModal] = useState(false);
     const [clientForm, setClientForm] = useState<{
@@ -129,6 +148,8 @@ export const HonorariosView: React.FC = () => {
         number: '',
         description: '',
         amount: 0,
+        currency: 'USD' as Currency,
+        exchangeRate: 1,
         dueDays: 15,
         status: 'SENT' as any
     });
@@ -147,17 +168,34 @@ export const HonorariosView: React.FC = () => {
         date: new Date().toISOString().split('T')[0]
     });
     const [savingPayment, setSavingPayment] = useState(false);
-    // Time Entry UI
     const [showTimeModal, setShowTimeModal] = useState(false);
     const [timeForm, setTimeForm] = useState({
+        id: undefined as string | undefined,
         matterId: '',
         lawyerId: '',
         hours: 1,
+        currency: 'USD' as Currency,
+        rate: 150,
         rateUsd: 150,
         description: '',
         date: new Date().toISOString().split('T')[0]
     });
     const [savingTime, setSavingTime] = useState(false);
+
+    // Matter Form UI
+    const [showMatterModal, setShowMatterModal] = useState(false);
+    const [matterForm, setMatterForm] = useState<Partial<Matter>>({
+        title: '',
+        code: '',
+        type: 'LITIGATION',
+        status: 'ACTIVE',
+        feeType: 'FIXED',
+        currency: 'USD',
+        budget: 0,
+        budgetUsd: 0,
+        clientId: ''
+    });
+    const [savingMatter, setSavingMatter] = useState(false);
     
     useEffect(() => {
         const loadInitialData = async () => {
@@ -173,17 +211,42 @@ export const HonorariosView: React.FC = () => {
                     invoiceService.getAll(),
                     timeEntryService.getAll()
                 ]);
+
+                // Normalizador PRO: Garantiza que datos viejos tengan los campos de moneda
+                const normalizedMatters = m.map(item => ({
+                    ...item,
+                    currency: item.currency || 'USD',
+                    budget: item.budget || item.budgetUsd || 0,
+                    hourlyRate: item.hourlyRate || item.hourlyRateUsd || 0
+                }));
+
+                const normalizedTimes = t.map(item => ({
+                    ...item,
+                    currency: item.currency || 'USD',
+                    rate: item.rate || item.rateUsd || 0,
+                    amount: item.amount || item.amountUsd || 0
+                }));
+
                 setClients(c);
-                setMatters(m);
+                setMatters(normalizedMatters);
                 setInvoices(i);
-                setTimeEntries(t);
+                setTimeEntries(normalizedTimes);
 
                 // Cargar gastos de todos los asuntos activos
-                if (m.length > 0) {
-                    const expPromises = m.map(matter => expenseService.getByMatter(matter.id));
+                if (normalizedMatters.length > 0) {
+                    const expPromises = normalizedMatters.map(matter => expenseService.getByMatter(matter.id));
                     const expArrays = await Promise.all(expPromises);
                     setExpenses(expArrays.flat());
                 }
+                // Cargar tasas de cambio
+                try {
+                    const [rateHistory, latest] = await Promise.all([
+                        exchangeRateService.getAll(),
+                        exchangeRateService.getLatestAll()
+                    ]);
+                    setExchangeRates(rateHistory);
+                    setLatestRates(latest);
+                } catch { /* sin tasas registradas aún */ }
             } catch (error) {
                 console.error("Error loading honorarios data:", error);
             } finally {
@@ -192,6 +255,12 @@ export const HonorariosView: React.FC = () => {
         };
         loadInitialData();
     }, []);
+
+    // Helper: Obtener tasa actual para guardado
+    const getRateForSave = (from: Currency, to: Currency) => {
+        if (from === to) return 1;
+        return latestRates[`${from}_${to}`] || 1;
+    };
 
     const handleStartSync = async () => {
         const [exps, ctrs] = await Promise.all([
@@ -257,11 +326,24 @@ export const HonorariosView: React.FC = () => {
         if (!matterForm.title || !matterForm.clientId) return;
         setSavingMatter(true);
         try {
-            await matterService.save(matterForm);
+            const currency = matterForm.currency || 'USD';
+            const exRate = getRateForSave(currency, 'USD');
+            
+            await matterService.save({
+                ...matterForm,
+                exchangeRate: (currency === 'USD') ? 1 : (1 / exRate) // Tasa para volver a USD
+            });
+            
             const m = await matterService.getAll();
-            setMatters(m);
+            const normalized = m.map(item => ({
+                ...item,
+                currency: item.currency || 'USD',
+                budget: item.budget || item.budgetUsd || 0,
+                hourlyRate: item.hourlyRate || item.hourlyRateUsd || 0
+            }));
+            setMatters(normalized);
             setShowMatterModal(false);
-            setMatterForm({ title: '', code: '', type: 'LITIGATION', status: 'ACTIVE', feeType: 'FIXED', budgetUsd: 0, clientId: '' });
+            setMatterForm({ title: '', code: '', type: 'LITIGATION', status: 'ACTIVE', feeType: 'FIXED', currency: 'USD', budget: 0, clientId: '' });
         } catch (err) {
             console.error("Error saving matter:", err);
             alert("No se pudo guardar el asunto.");
@@ -336,14 +418,16 @@ export const HonorariosView: React.FC = () => {
                 dueAt: due.toISOString(),
                 taxPct: 0,
                 islrPct: 0,
-                subtotalUsd: invoiceData.amount, // FIX: The service calculates total from subtotal
-                paidUsd: 0,
+                currency: invoiceData.currency,
+                exchangeRate: invoiceData.exchangeRate,
+                subtotal: invoiceData.amount, // Monto en la moneda seleccionada
+                paid: 0,
             });
 
             const updatedInvoices = await invoiceService.getAll();
             setInvoices(updatedInvoices);
             setShowInvoiceModal(false);
-            setInvoiceData({ id: undefined, number: '', description: '', amount: 0, dueDays: 15, status: 'SENT' });
+            setInvoiceData({ id: undefined, number: '', description: '', amount: 0, currency: 'USD', exchangeRate: 1, dueDays: 15, status: 'SENT' });
         } catch (err) {
             console.error("Error saving invoice:", err);
             alert("No se pudo guardar la factura.");
@@ -357,12 +441,32 @@ export const HonorariosView: React.FC = () => {
             id: inv.id,
             number: inv.number,
             description: inv.notes || '',
-            amount: inv.subtotalUsd,
+            amount: inv.total,
+            currency: inv.currency,
+            exchangeRate: inv.exchangeRate,
             dueDays: 15,
             status: inv.status
         });
         setSelectedMatterId(inv.matterId || '');
         setShowInvoiceModal(true);
+    };
+
+    // ── Motor de Presentación Profesional ────────────────────
+    /**
+     * @description Convierte y formatea un valor base (USD) a la moneda de presentación activa
+     * @param valUsd Valor en USD
+     * @param forceCurrency Si se pasa, fuerza el formateo en esa moneda sin convertir (Uso en tablas nominales)
+     */
+    const renderFmt = (valUsd: number, forceCurrency?: Currency) => {
+        if (forceCurrency) {
+            const sym = CURRENCY_SYMBOLS[forceCurrency] || '$';
+            return `${sym}${valUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        
+        const rate = (presentationCurrency === 'USD') ? 1 : latestRates[`USD_${presentationCurrency}`] || 1;
+        const finalValue = valUsd * rate;
+        const sym = CURRENCY_SYMBOLS[presentationCurrency] || '$';
+        return `${sym}${finalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
 
     const handleDeleteInvoice = async (id: string) => {
@@ -379,26 +483,27 @@ export const HonorariosView: React.FC = () => {
         if (!timeForm.matterId || timeForm.hours <= 0) return;
         setSavingTime(true);
         try {
-            const m = matters.find(x => x.id === timeForm.matterId);
-            if (!m) return;
+            const currency = timeForm.currency || 'USD';
+            const exRate = getRateForSave(currency, 'USD');
             
             await timeEntryService.save({
-                matterId: timeForm.matterId,
-                hours: timeForm.hours,
-                rateUsd: timeForm.rateUsd,
-                description: timeForm.description,
-                date: timeForm.date,
-                amountUsd: timeForm.hours * timeForm.rateUsd,
-                lawyerId: timeForm.lawyerId || (lawyers.length > 0 ? lawyers[0].id : undefined)
+                ...timeForm,
+                exchangeRate: (currency === 'USD') ? 1 : (1 / exRate)
             });
             
             const t = await timeEntryService.getAll();
-            setTimeEntries(t);
+            const normalized = t.map(item => ({
+                ...item,
+                currency: item.currency || 'USD',
+                rate: item.rate || item.rateUsd || 0,
+                amount: item.amount || item.amountUsd || 0
+            }));
+            setTimeEntries(normalized);
             setShowTimeModal(false);
-            setTimeForm({ matterId: '', lawyerId: '', hours: 1, rateUsd: 150, description: '', date: new Date().toISOString().split('T')[0] });
+            setTimeForm({ id: undefined, matterId: '', lawyerId: '', hours: 1, currency: 'USD', rate: 150, rateUsd: 150, description: '', date: new Date().toISOString().split('T')[0] });
         } catch (err) {
-            console.error("Error saving time:", err);
-            alert("No se pudo registrar el tiempo.");
+            console.error("Error saving time entry:", err);
+            alert("No se pudo guardar el registro de tiempo.");
         } finally {
             setSavingTime(false);
         }
@@ -411,7 +516,10 @@ export const HonorariosView: React.FC = () => {
             await paymentService.save({
                 invoiceId: selectedInvoice.id,
                 clientId: selectedInvoice.clientId,
-                amountUsd: paymentForm.amount,
+                currency: selectedInvoice.currency,
+                amount: paymentForm.amount,
+                exchangeRate: selectedInvoice.exchangeRate,
+                amountUsd: selectedInvoice.currency === 'USD' ? paymentForm.amount : paymentForm.amount / selectedInvoice.exchangeRate,
                 method: paymentForm.method,
                 reference: paymentForm.reference,
                 paidAt: paymentForm.date
@@ -439,62 +547,67 @@ export const HonorariosView: React.FC = () => {
         const now = new Date();
         
         // Header
-        doc.setFontSize(20);
-        doc.setTextColor(99, 102, 241);
-        doc.text("LegalDoc VE — REPORTE FINANCIERO CERTIFICADO", 14, 22);
+        doc.setFontSize(22);
+        doc.setTextColor(30, 27, 75);
+        doc.text("LegalDoc VE", 14, 20);
         
         doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text(`Fecha de Emisión: ${now.toLocaleString()}`, 14, 30);
-        doc.text(`ID Certificación: ${Math.random().toString(36).toUpperCase().slice(2)}`, 14, 35);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`REPORTE FINANCIERO CONSOLIDADO (${presentationCurrency})`, 14, 28);
+        doc.text(`Fecha de emisión: ${now.toLocaleString()}`, 14, 34);
         
-        // Totales
-        const totalBilled = invoices.reduce((s, i) => s + i.totalUsd, 0);
-        const totalPaid = invoices.reduce((s, i) => s + i.paidUsd, 0);
-        const totalPending = totalBilled - totalPaid;
-
+        // KPIs en PDF
+        const totalBudgeted = matters.reduce((sum, m) => sum + m.budgetUsd, 0);
+        const totalPaidValue = invoices.reduce((sum, inv) => sum + inv.paidUsd, 0);
+        
         doc.setFontSize(12);
-        doc.setTextColor(0);
-        doc.text("Resumen Operativo:", 14, 50);
-        doc.text(`Total Facturado: $${totalBilled.toLocaleString()}`, 14, 60);
-        doc.text(`Total Cobrado: $${totalPaid.toLocaleString()}`, 14, 65);
-        doc.text(`Pendiente de Cobro: $${totalPending.toLocaleString()}`, 14, 70);
-
-        // Tabla de Facturas
-        const tableData = invoices.map(i => [
-            String(i.number || ''), 
-            new Date(i.issuedAt).toLocaleDateString(), 
-            String(i.clientName || 'N/A'), 
-            `$${(i.totalUsd || 0).toLocaleString()}`, 
-            `$${(i.balanceUsd || 0).toLocaleString()}`, 
-            String(i.status || '')
-        ]);
-
-        autoTable(doc, {
-            startY: 80,
-            head: [['Factura', 'Fecha', 'Cliente', 'Total', 'Pendiente', 'Estado']],
-            body: tableData,
-            theme: 'striped',
-            headStyles: { fillColor: [99, 102, 241] }
+        doc.setTextColor(0, 0, 0);
+        doc.text(`TOTAL PRESUPUESTADO: ${renderFmt(totalBudgeted)}`, 14, 45);
+        doc.text(`TOTAL COBRADO: ${renderFmt(totalPaidValue)}`, 14, 52);
+        
+        // Tabla de Facturación
+        const tableData = invoices.map(i => {
+            return [
+                i.number,
+                new Date(i.issuedAt).toLocaleDateString(),
+                i.clientName || '---',
+                i.currency,
+                renderFmt(i.total, i.currency), 
+                renderFmt(i.totalUsd), 
+                renderFmt(i.balanceUsd),
+                String(i.status || '')
+            ];
         });
 
+        autoTable(doc, {
+            startY: 65,
+            head: [['Factura', 'Fecha', 'Cliente', 'Divisa', 'Monto Nom.', `Total (${presentationCurrency})`, 'Saldo Pnd.', 'Estado']],
+            body: tableData,
+            theme: 'striped',
+            headStyles: { fillColor: [99, 102, 241], fontSize: 8 },
+            styles: { fontSize: 8 }
+        });
+        
         // Firma Digital / QR Mock
         const finalY = (doc as any).lastAutoTable.finalY + 20;
         doc.setFontSize(8);
         doc.text("Este reporte ha sido certificado digitalmente bajo el estándar LegalDoc VE v1.0.", 14, finalY);
-        doc.text("La integridad del documento puede verificarse mediante el SHA-256 en el portal de auditoría.", 14, finalY + 5);
+        doc.text(`Consolidado en ${presentationCurrency} según tasas vigentes.`, 14, finalY + 5);
 
-        doc.save(`reporte_honorarios_${now.toISOString().split('T')[0]}.pdf`);
+        doc.save(`reporte_financiero_${presentationCurrency}_${now.toISOString().split('T')[0]}.pdf`);
     };
 
     const handleExportCSV = () => {
-        const headers = ["Numero", "Fecha", "Cliente", "Asunto", "Total", "Pendiente", "Estado"];
+        const headers = ["Numero", "Fecha", "Cliente", "Asunto", "Moneda", "Monto Original", "Total USD", "Saldo Original", "Saldo USD", "Estado"];
         const rows = invoices.map(i => [
             i.number,
             new Date(i.issuedAt).toLocaleDateString(),
             i.clientName,
             i.matterTitle,
+            i.currency,
+            i.total,
             i.totalUsd,
+            i.balance,
             i.balanceUsd,
             i.status
         ]);
@@ -506,6 +619,53 @@ export const HonorariosView: React.FC = () => {
         a.href = url;
         a.download = `reporte_facturacion_${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
+    };
+
+    const handleExportExpensesPDF = (filtered: MatterExpense[]) => {
+        const doc = new jsPDF();
+        const now = new Date();
+        
+        doc.setFontSize(22);
+        doc.setTextColor(30, 27, 75);
+        doc.text("LegalDoc VE — Control de Gastos", 14, 20);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`DESGLOSE CONSOLIDADO EN (${presentationCurrency})`, 14, 28);
+        doc.text(`Generado el: ${now.toLocaleString()}`, 14, 34);
+        
+        const totalUsd = filtered.reduce((s, e) => s + e.amountUsd, 0);
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`TOTAL GASTOS CONSOLIDADOS: ${renderFmt(totalUsd)}`, 14, 45);
+
+        const tableData = filtered.map(exp => {
+            const mat = matters.find(m => m.id === exp.matterId);
+            return [
+                exp.date,
+                mat?.title || '---',
+                exp.category,
+                exp.description,
+                exp.currency,
+                renderFmt(exp.amount, exp.currency),
+                renderFmt(exp.amountUsd)
+            ];
+        });
+
+        autoTable(doc, {
+            startY: 55,
+            head: [['Fecha', 'Asunto', 'Cat.', 'Descripción', 'Divisa', 'Nominal', `Total (${presentationCurrency})`]],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229], fontSize: 8 },
+            styles: { fontSize: 7 }
+        });
+        
+        const finalY = (doc as any).lastAutoTable.finalY + 15;
+        doc.setFontSize(8);
+        doc.text("Este reporte ha sido generado bajo los estándares de transparencia financiera LegalDoc VE.", 14, finalY);
+
+        doc.save(`reporte_gastos_${presentationCurrency}_${now.toISOString().split('T')[0]}.pdf`);
     };
 
     const renderClients = () => (
@@ -571,7 +731,7 @@ export const HonorariosView: React.FC = () => {
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>CÓDIGO / CASO</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>CLIENTE</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>TIPO / FEE</th>
-                        <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>PRESUPUESTADO</th>
+                        <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>PRESUPUESTADO ({presentationCurrency})</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>ESTADO</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>ACCIÓN</th>
                     </tr>
@@ -588,7 +748,10 @@ export const HonorariosView: React.FC = () => {
                                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>{m.type}</div>
                                 <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{m.feeType}</div>
                             </td>
-                            <td style={{ padding: '1rem', fontWeight: 800 }}>${m.budgetUsd.toLocaleString()}</td>
+                            <td style={{ padding: '1rem' }}>
+                                <div style={{ fontWeight: 800 }}>{renderFmt(m.budgetUsd)}</div>
+                                <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Original: {renderFmt(m.budget, m.currency)}</div>
+                            </td>
                             <td style={{ padding: '1rem' }}>
                                 <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 800, background: m.status === 'ACTIVE' ? '#e0e7ff' : '#f1f5f9', color: m.status === 'ACTIVE' ? '#4338ca' : '#475569' }}>
                                     {m.status}
@@ -637,7 +800,7 @@ export const HonorariosView: React.FC = () => {
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>CASO / DESCRIPCIÓN</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>ABOGADO</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>HORAS</th>
-                        <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>MONTO</th>
+                        <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>MONTO ({presentationCurrency})</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>FACTURADO</th>
                     </tr>
                 </thead>
@@ -649,9 +812,12 @@ export const HonorariosView: React.FC = () => {
                                 <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{e.matterTitle}</div>
                                 <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{e.description}</div>
                             </td>
-                            <td style={{ padding: '1rem', fontSize: '0.85rem' }}>{e.lawyerName}</td>
+                             <td style={{ padding: '1rem', fontSize: '0.85rem' }}>{e.lawyerName}</td>
                             <td style={{ padding: '1rem', fontWeight: 800 }}>{e.hours}h</td>
-                            <td style={{ padding: '1rem', fontWeight: 800 }}>${e.amountUsd.toLocaleString()}</td>
+                            <td style={{ padding: '1rem' }}>
+                                <div style={{ fontWeight: 800 }}>{renderFmt(e.amountUsd)}</div>
+                                <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Rate: {renderFmt(e.rate, e.currency)}/h</div>
+                            </td>
                             <td style={{ padding: '1rem' }}>
                                 {e.isInvoiced ? <CheckCircle2 size={16} color="#16a34a" /> : <AlertTriangle size={16} color="#f59e0b" />}
                             </td>
@@ -676,8 +842,8 @@ export const HonorariosView: React.FC = () => {
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>NÚMERO</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>EMISIÓN / VENC.</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>CLIENTE / ASUNTO</th>
-                        <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>TOTAL</th>
-                        <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>PENDIENTE</th>
+                        <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>TOTAL ({presentationCurrency})</th>
+                        <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>PENDIENTE ({presentationCurrency})</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>ESTADO</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>ACCIONES</th>
                     </tr>
@@ -694,8 +860,13 @@ export const HonorariosView: React.FC = () => {
                                 <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{inv.clientName}</div>
                                 <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{inv.matterTitle}</div>
                             </td>
-                            <td style={{ padding: '1rem', fontWeight: 800 }}>${inv.totalUsd.toLocaleString()}</td>
-                            <td style={{ padding: '1rem', fontWeight: 800, color: inv.balanceUsd > 0 ? '#e11d48' : '#16a34a' }}>${inv.balanceUsd.toLocaleString()}</td>
+                            <td style={{ padding: '1rem', fontWeight: 800 }}>
+                                <div style={{ fontWeight: 800 }}>{renderFmt(inv.totalUsd)}</div>
+                                <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Original: {renderFmt(inv.total, inv.currency)}</div>
+                            </td>
+                            <td style={{ padding: '1rem', fontWeight: 800, color: inv.balance > 0 ? '#e11d48' : '#16a34a' }}>
+                                <div style={{ fontWeight: 800 }}>{renderFmt(inv.balanceUsd)}</div>
+                            </td>
                             <td style={{ padding: '1rem' }}>
                                 <span className={`status-badge status-${inv.status.toLowerCase()}`}>
                                     {inv.status}
@@ -703,11 +874,11 @@ export const HonorariosView: React.FC = () => {
                             </td>
                             <td style={{ padding: '1rem' }}>
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    {inv.balanceUsd > 0 && (
+                                    {inv.balance > 0 && (
                                         <button 
                                             className="btn-primary" 
                                             style={{ padding: '6px 12px', fontSize: '0.65rem' }}
-                                            onClick={() => { setSelectedInvoice(inv); setPaymentForm({...paymentForm, amount: inv.balanceUsd}); setShowPaymentModal(true); }}
+                                            onClick={() => { setSelectedInvoice(inv); setPaymentForm({...paymentForm, amount: inv.balance}); setShowPaymentModal(true); }}
                                         >
                                             Cobrar
                                         </button>
@@ -740,70 +911,192 @@ export const HonorariosView: React.FC = () => {
         const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.totalUsd, 0);
         const totalPaid = invoices.reduce((sum, inv) => sum + inv.paidUsd, 0);
         const totalPendingCollect = totalInvoiced - totalPaid;
-        const totalToInvoice = totalBudgeted - totalInvoiced;
+        const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amountUsd, 0);
         
+        const rateForGraphs = (presentationCurrency === 'USD') ? 1 : latestRates[`USD_${presentationCurrency}`] || 1;
+
+        // Datos para gráfico de barras (Facturación vs Cobro vs Gastos) en la moneda actual
+        const barData = [
+            { name: 'Estimado', monto: totalBudgeted * rateForGraphs },
+            { name: 'Emitido', monto: totalInvoiced * rateForGraphs },
+            { name: 'Cobrado', monto: totalPaid * rateForGraphs },
+            { name: 'Gastos', monto: totalExpenses * rateForGraphs }
+        ];
+
+        // Distribución de gastos por categoría en la moneda actual
+        const pieData = Object.keys(EXPENSE_CATEGORIES).map(catKey => {
+            const amount = expenses.filter(e => e.category === catKey).reduce((s, e) => s + e.amountUsd, 0) * rateForGraphs;
+            return { name: EXPENSE_CATEGORIES[catKey as ExpenseCategory].label, value: amount, color: EXPENSE_CATEGORIES[catKey as ExpenseCategory].color };
+        }).filter(d => d.value > 0);
+
         return (
             <div style={{ display: 'grid', gap: '2rem' }} className="fade-in">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem' }}>
-                    <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #6366f1' }}>
-                        <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', margin: '0 0 0.5rem 0' }}>PRESUPUESTADO</p>
-                        <h3 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0 }}>${totalBudgeted.toLocaleString()}</h3>
-                        <p style={{ fontSize: '0.65rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>Monto total en ejecución</p>
+                {/* BARRA DE CONTROLES FINANCIEROS (MASTER SWITCH) */}
+                <div className="premium-card" style={{ padding: '1.25rem 2rem', borderLeft: '6px solid #6366f1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to right, #ffffff, #f8fafc)' }}>
+                    <div>
+                        <h4 style={{ margin: 0, fontWeight: 800, color: '#1e293b' }}>Controlador de Divisas</h4>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>Visualización global reconvertida mediante tasas BCV/Live</p>
                     </div>
-
-                    <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #f59e0b' }}>
-                        <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', margin: '0 0 0.5rem 0' }}>POR FACTURAR</p>
-                        <h3 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#d97706' }}>${totalToInvoice.toLocaleString()}</h3>
-                        <p style={{ fontSize: '0.65rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>{((totalInvoiced/totalBudgeted)*100 || 0).toFixed(0)}% del presupuesto emitido</p>
-                    </div>
-
-                    <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #10b981' }}>
-                        <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', margin: '0 0 0.5rem 0' }}>COBRADO REAL</p>
-                        <h3 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#059669' }}>${totalPaid.toLocaleString()}</h3>
-                        <p style={{ fontSize: '0.65rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>{((totalPaid/totalInvoiced)*100 || 0).toFixed(0)}% efectividad de cobro</p>
-                    </div>
-
-                    <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #ef4444' }}>
-                        <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', margin: '0 0 0.5rem 0' }}>PTE. POR COBRAR</p>
-                        <h3 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#dc2626' }}>${totalPendingCollect.toLocaleString()}</h3>
-                        <p style={{ fontSize: '0.65rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>Cuentas por cobrar activas</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b' }}>MOSTRAR TODO EN:</span>
+                        <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '12px', gap: '4px' }}>
+                            {(['USD', 'EUR', 'VES'] as Currency[]).map(cur => (
+                                <button
+                                    key={cur}
+                                    onClick={() => setPresentationCurrency(cur)}
+                                    style={{
+                                        padding: '0.5rem 1.25rem',
+                                        borderRadius: '10px',
+                                        border: 'none',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        background: presentationCurrency === cur ? '#6366f1' : 'transparent',
+                                        color: presentationCurrency === cur ? 'white' : '#64748b',
+                                        boxShadow: presentationCurrency === cur ? '0 4px 6px -1px rgba(99, 102, 241, 0.4)' : 'none'
+                                    }}
+                                >
+                                    {CURRENCY_SYMBOLS[cur]} {cur}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+                {/* KPIs Superiores */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem' }}>
+                    <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #6366f1' }}>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', margin: '0 0 0.5rem 0' }}>ESTIMADO TOTAL ({presentationCurrency})</p>
+                        <h3 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0 }}>{renderFmt(totalBudgeted)}</h3>
+                        <p style={{ fontSize: '0.65rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>Presupuesto total en cartera</p>
+                    </div>
+
+                    <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #f59e0b' }}>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', margin: '0 0 0.5rem 0' }}>COBROS PENDIENTES ({presentationCurrency})</p>
+                        <h3 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#d97706' }}>{renderFmt(totalPendingCollect)}</h3>
+                        <p style={{ fontSize: '0.65rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>Por facturas emitidas</p>
+                    </div>
+
+                    <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #10b981' }}>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', margin: '0 0 0.5rem 0' }}>LIQUIDEZ REAL ({presentationCurrency})</p>
+                        <h3 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#059669' }}>{renderFmt(totalPaid)}</h3>
+                        <p style={{ fontSize: '0.65rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>Ingresos efectivos</p>
+                    </div>
+
+                    <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #ef4444' }}>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', margin: '0 0 0.5rem 0' }}>GASTOS OPERATIVOS ({presentationCurrency})</p>
+                        <h3 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#dc2626' }}>{renderFmt(totalExpenses)}</h3>
+                        <p style={{ fontSize: '0.65rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>Costos directos del despacho</p>
+                    </div>
+                </div>
+
+                {/* Gráficos Principales */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2rem' }}>
+                    <div className="premium-card" style={{ padding: '2rem', height: '400px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h4 style={{ margin: 0, fontWeight: 800 }}>Rendimiento Financiero ({presentationCurrency})</h4>
+                            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.7rem', fontWeight: 700 }}>
+                                <span style={{ color: '#6366f1' }}>■ Facturación</span>
+                                <span style={{ color: '#10b981' }}>■ Cobro Real</span>
+                            </div>
+                        </div>
+                        <ResponsiveContainer width="100%" height="85%">
+                            <BarChart data={barData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                                <Tooltip 
+                                    cursor={{ fill: '#f8fafc' }}
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                                    formatter={(value: any) => [`${renderFmt(value / rateForGraphs)}`, `Monto (${presentationCurrency})`]}
+                                />
+                                <Bar dataKey="monto" radius={[8, 8, 0, 0]}>
+                                    {barData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={index === 0 ? '#6366f1' : index === 1 ? '#818cf8' : index === 2 ? '#10b981' : '#ef4444'} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    <div className="premium-card" style={{ padding: '2rem', height: '400px' }}>
+                        <h4 style={{ margin: '0 0 1.5rem 0', fontWeight: 800 }}>Distribución de Gastos</h4>
+                        <ResponsiveContainer width="100%" height="80%">
+                            <PieChart>
+                                <Pie
+                                    data={pieData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {pieData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value: any) => [`${renderFmt(value / rateForGraphs)}`, presentationCurrency]} />
+                                <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', fontWeight: 600 }} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Listados Rápidos */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: '2rem' }}>
                     <div className="premium-card" style={{ padding: '1.5rem' }}>
-                        <h4 style={{ margin: '0 0 1.5rem 0', fontWeight: 700 }}>Últimas Facturas</h4>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h4 style={{ margin: 0, fontWeight: 800 }}>Últimas Facturas Emitidas</h4>
+                            <button className="btn-secondary" style={{ padding: '4px 12px', fontSize: '0.7rem' }} onClick={() => setActiveTab('FACTURAS')}>Ver Todas</button>
+                        </div>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
                                 <tr style={{ borderBottom: '1px solid #f1f5f9', textAlign: 'left' }}>
-                                    <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', color: '#64748b' }}>NÚMERO</th>
-                                    <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', color: '#64748b' }}>CLIENTE</th>
-                                    <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', color: '#64748b' }}>MONTO</th>
+                                    <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Filtro / ID</th>
+                                    <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Cliente</th>
+                                    <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Monto</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {invoices.slice(0, 5).map(inv => (
                                     <tr key={inv.id} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                        <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{inv.number}</td>
-                                        <td style={{ padding: '0.75rem 0.5rem' }}>{inv.clientName}</td>
-                                        <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700 }}>${inv.totalUsd.toLocaleString()}</td>
+                                        <td style={{ padding: '0.75rem 0.5rem' }}>
+                                            <div style={{ fontWeight: 800, fontSize: '0.8rem' }}>{inv.number}</div>
+                                            <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{new Date(inv.issuedAt).toLocaleDateString()}</div>
+                                        </td>
+                                        <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>{inv.clientName}</td>
+                                        <td style={{ padding: '0.75rem 0.5rem', fontWeight: 900, textAlign: 'right', color: '#1e293b' }}>
+                                            {CURRENCY_SYMBOLS[inv.currency] || '$'}{inv.total.toLocaleString()}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
+                    
                     <div className="premium-card" style={{ padding: '1.5rem' }}>
-                        <h4 style={{ margin: '0 0 1.5rem 0', fontWeight: 700 }}>Asuntos Activos</h4>
-                        <div style={{ display: 'grid', gap: '1rem' }}>
-                            {matters.slice(0, 5).map(m => (
-                                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div>
-                                        <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem' }}>{m.title}</p>
-                                        <p style={{ margin: 0, fontSize: '0.7rem', color: '#64748b' }}>{m.clientName}</p>
+                        <h4 style={{ margin: '0 0 1.5rem 0', fontWeight: 800 }}>Estado de Portafolio</h4>
+                        <div style={{ display: 'grid', gap: '1.25rem' }}>
+                            {matters.slice(0, 5).map(m => {
+                                const invoiced = invoices.filter(i => i.matterId === m.id).reduce((s, i) => s + i.totalUsd, 0);
+                                const pct = (invoiced / m.budgetUsd) * 100;
+                                return (
+                                    <div key={m.id}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                                            <div>
+                                                <p style={{ margin: 0, fontWeight: 800, fontSize: '0.8rem', color: '#1e293b' }}>{m.title}</p>
+                                                <p style={{ margin: 0, fontSize: '0.65rem', color: '#64748b' }}>{m.clientName}</p>
+                                            </div>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#6366f1' }}>{pct.toFixed(0)}%</span>
+                                        </div>
+                                        <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' }}>
+                                            <div style={{ height: '100%', background: '#6366f1', width: `${Math.min(pct, 100)}%`, borderRadius: '10px' }}></div>
+                                        </div>
                                     </div>
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 800 }}>${m.budgetUsd.toLocaleString()}</span>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -847,7 +1140,7 @@ export const HonorariosView: React.FC = () => {
             setExpenses(expArrays.flat());
             setShowExpenseModal(false);
             setReceiptFile(null);
-            setExpenseForm({ matterId: '', date: new Date().toISOString().split('T')[0], description: '', category: 'OTHER', amountUsd: 0, paidBy: 'FIRM', isReimbursed: false });
+            setExpenseForm({ matterId: '', date: new Date().toISOString().split('T')[0], description: '', category: 'OTHER', amount: 0, amountUsd: 0, currency: 'USD', exchangeRate: 1, paidBy: 'FIRM', isReimbursed: false });
         } catch (e: any) {
             alert('Error al guardar gasto: ' + e.message);
         } finally {
@@ -865,15 +1158,23 @@ export const HonorariosView: React.FC = () => {
         const byClient = filtered.filter(e => e.paidBy === 'CLIENT').reduce((s, e) => s + e.amountUsd, 0);
         const pending  = filtered.filter(e => !e.isReimbursed && e.paidBy === 'FIRM').reduce((s, e) => s + e.amountUsd, 0);
 
+        const values = {
+            total: renderFmt(totalUsd),
+            firm: renderFmt(byFirm),
+            client: renderFmt(byClient),
+            pend: renderFmt(pending)
+        };
+
+
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {/* KPIs */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
                     {[
-                        { label: 'Total Gastos', value: `$${totalUsd.toLocaleString()}`, color: '#6366f1', sub: `${filtered.length} registros` },
-                        { label: 'Pagados por Despacho', value: `$${byFirm.toLocaleString()}`, color: '#dc2626', sub: 'Financiados por el despacho' },
-                        { label: 'Pagados por Cliente', value: `$${byClient.toLocaleString()}`, color: '#059669', sub: 'A cargo del cliente' },
-                        { label: 'Sin Reembolsar', value: `$${pending.toLocaleString()}`, color: '#d97706', sub: 'Pendiente de reembolso' },
+                        { label: `Total Gastos (${presentationCurrency})`, value: values.total, color: '#6366f1', sub: `${filtered.length} registros` },
+                        { label: `Pagados x Despacho (${presentationCurrency})`, value: values.firm, color: '#dc2626', sub: 'Financiados por el despacho' },
+                        { label: `Pagados x Cliente (${presentationCurrency})`, value: values.client, color: '#059669', sub: 'A cargo del cliente' },
+                        { label: `Sin Reembolsar (${presentationCurrency})`, value: values.pend, color: '#d97706', sub: 'Pendiente de reembolso' },
                     ].map((kpi, i) => (
                         <div key={i} className="premium-card" style={{ padding: '1.5rem', borderLeft: `4px solid ${kpi.color}` }}>
                             <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{kpi.label}</p>
@@ -922,7 +1223,7 @@ export const HonorariosView: React.FC = () => {
                             className="btn-primary"
                             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                             onClick={() => {
-                                setExpenseForm({ matterId: expenseFilterMatter || '', date: new Date().toISOString().split('T')[0], description: '', category: 'OTHER', amountUsd: 0, paidBy: 'FIRM', isReimbursed: false });
+                                setExpenseForm({ matterId: expenseFilterMatter || '', date: new Date().toISOString().split('T')[0], description: '', category: 'OTHER', amount: 0, amountUsd: 0, currency: 'USD', exchangeRate: 1, paidBy: 'FIRM', isReimbursed: false });
                                 setReceiptFile(null);
                                 setShowExpenseModal(true);
                             }}
@@ -943,7 +1244,7 @@ export const HonorariosView: React.FC = () => {
                                         onChange={e => setSelectedExpenses(e.target.checked ? filtered.map(x => x.id) : [])}
                                     />
                                 </th>
-                                {['Fecha', 'Asunto', 'Categoría', 'Descripción', 'Pagado por', 'Monto USD', 'Reembolsado', 'Comprobante', ''].map((h, i) => (
+                                {['Fecha', 'Asunto', 'Categoría', 'Descripción', 'Pagado por', `Monto (${presentationCurrency})`, 'Reembolsado', 'Comprobante', ''].map((h, i) => (
                                     <th key={i} style={{ padding: '1rem', textAlign: 'left', fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>{h}</th>
                                 ))}
                             </tr>
@@ -979,12 +1280,11 @@ export const HonorariosView: React.FC = () => {
                                         </td>
                                         <td style={{ padding: '0.875rem 1rem' }}>
                                             <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
-                                                {exp.currency === 'EUR' ? '€' : exp.currency === 'VES' ? 'Bs.' : '$'}
-                                                {(exp.amount || exp.amountUsd).toLocaleString()}
+                                                {renderFmt(exp.amountUsd)}
                                             </div>
-                                            {exp.currency !== 'USD' && exp.amountUsd > 0 && (
-                                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px' }}>≈ ${exp.amountUsd.toFixed(2)} USD</div>
-                                            )}
+                                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px' }}>
+                                                Original: {renderFmt(exp.amount, exp.currency)}
+                                            </div>
                                         </td>
                                         <td style={{ padding: '0.875rem 1rem' }}>
                                             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: exp.isReimbursed ? '#059669' : '#d97706' }}>
@@ -1174,13 +1474,13 @@ export const HonorariosView: React.FC = () => {
                                         {selExp.map((e, i) => (
                                             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b' }}>
                                                 <span>• {e.description}</span>
-                                                <span style={{ fontWeight: 700 }}>${e.amountUsd.toLocaleString()}</span>
+                                                <span style={{ fontWeight: 700 }}>{CURRENCY_SYMBOLS[e.currency] || '$'}{e.amount.toLocaleString()}</span>
                                             </div>
                                         ))}
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.75rem', borderTop: '2px solid #e2e8f0' }}>
-                                        <span style={{ fontWeight: 800 }}>TOTAL</span>
-                                        <span style={{ fontWeight: 900, fontSize: '1.1rem', color: '#6366f1' }}>${subtotal.toLocaleString()}</span>
+                                        <span style={{ fontWeight: 800 }}>TOTAL (USD)</span>
+                                        <span style={{ fontWeight: 900, fontSize: '1.1rem', color: '#6366f1' }}>{CURRENCY_SYMBOLS['USD']}{subtotal.toLocaleString()}</span>
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
@@ -1222,42 +1522,7 @@ export const HonorariosView: React.FC = () => {
         );
     };
 
-    const handleExportExpensesPDF = (expList: typeof expenses) => {
-        const doc = new jsPDF();
-        const pw = doc.internal.pageSize.getWidth();
-        const today = new Date().toLocaleDateString('es-VE');
-        doc.setFillColor(99, 102, 241);
-        doc.rect(0, 0, pw, 32, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(15); doc.setFont('helvetica', 'bold');
-        doc.text('LegalDoc VE — Reporte de Gastos Procesales', 14, 14);
-        doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-        doc.text(`Generado: ${today}  |  ${expList.length} registros`, 14, 24);
-        const total = expList.reduce((s, e) => s + e.amountUsd, 0);
-        const pend  = expList.filter(e => !e.isReimbursed && e.paidBy === 'FIRM').reduce((s, e) => s + e.amountUsd, 0);
-        doc.setTextColor(30, 41, 59);
-        doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-        doc.text(`Total: $${total.toLocaleString()} USD`, 14, 43);
-        doc.text(`Sin reembolsar: $${pend.toLocaleString()} USD`, 100, 43);
-        const catLabel: Record<string,string> = { COURT_FEE:'Aranceles', NOTARY:'Notaría', EXPERT:'Perito', TRAVEL:'Traslados', PRINTING:'Impresiones', APOSTILLE:'Apostilla', OTHER:'Otros' };
-        autoTable(doc, {
-            startY: 50,
-            head: [['Fecha','Asunto','Categoría','Descripción','Pagado por','Monto USD','Reembolsado']],
-            body: expList.map(e => {
-                const m = matters.find(x => x.id === e.matterId);
-                return [e.date, (m?.title ?? '—').substring(0,22), catLabel[e.category]||'Otros', (e.description||'').substring(0,28), e.paidBy==='FIRM'?'Despacho':'Cliente', `$${e.amountUsd.toLocaleString()}`, e.isReimbursed?'Sí':'Pendiente'];
-            }),
-            headStyles: { fillColor: [99,102,241], textColor:255, fontStyle:'bold', fontSize:7.5 },
-            bodyStyles: { fontSize:7.5, textColor:[30,41,59] },
-            alternateRowStyles: { fillColor:[248,250,252] },
-            columnStyles: { 5: { halign:'right', fontStyle:'bold' } },
-            margin: { left:14, right:14 },
-        });
-        const fy = (doc as any).lastAutoTable.finalY + 10;
-        doc.setFontSize(7); doc.setTextColor(148,163,184);
-        doc.text('Documento generado por LegalDoc VE — Sistema de Gestión Legal Venezolano', 14, fy);
-        doc.save(`Gastos_LegalDocVE_${today.replace(/\//g,'-')}.pdf`);
-    };
+
 
 
 
@@ -1271,6 +1536,18 @@ export const HonorariosView: React.FC = () => {
                     <p style={{ color: '#64748b', margin: '0.5rem 0 0 0' }}>Administración operativa global y control de cobros</p>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
+                    {/* Widget rápido de tasas */}
+                    {latestRates['USD_VES'] > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.76rem', fontWeight: 700, color: '#166534', cursor: 'pointer' }}
+                            onClick={() => setShowRatesModal(true)}>
+                            <ArrowLeftRight size={14}/>
+                            {latestRates['USD_VES'] > 0 && <span>{CURRENCY_SYMBOLS['USD']}1 = {CURRENCY_SYMBOLS['VES']}{latestRates['USD_VES'].toLocaleString()}</span>}
+                            {latestRates['EUR_VES'] > 0 && <span style={{ borderLeft: '1px solid #bbf7d0', paddingLeft: '0.5rem' }}>{CURRENCY_SYMBOLS['EUR']}1 = {CURRENCY_SYMBOLS['VES']}{latestRates['EUR_VES'].toLocaleString()}</span>}
+                        </div>
+                    )}
+                    <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', borderColor: '#059669', color: '#059669' }} onClick={() => setShowRatesModal(true)}>
+                        <DollarSign size={18} /> Tasas
+                    </button>
                     <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => setShowForensicModal(true)}>
                         <TrendingUp size={18} /> Reporte Forense
                     </button>
@@ -1395,7 +1672,7 @@ export const HonorariosView: React.FC = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.5rem' }}>PRESUPUESTO ($)</label>
+                                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.5rem' }}>PRESUPUESTO ({CURRENCY_SYMBOLS['USD']})</label>
                                         <input type="number" style={inputStyle} value={syncBudget} onChange={(e) => setSyncBudget(Number(e.target.value))} />
                                     </div>
                                 </div>
@@ -1543,13 +1820,48 @@ export const HonorariosView: React.FC = () => {
                                 </div>
                             </div>
 
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.5rem' }}>MONEDA</label>
+                                    <select 
+                                        style={inputStyle} 
+                                        value={invoiceData.currency}
+                                        onChange={e => {
+                                            const c = e.target.value as Currency;
+                                            setInvoiceData({...invoiceData, currency: c, exchangeRate: c === 'USD' ? 1 : (latestRates[`${c}_VES`] / latestRates['USD_VES']) || 1});
+                                        }}
+                                    >
+                                        <option value="USD">🇺🇸 USD — Dólar</option>
+                                        <option value="EUR">🇪🇺 EUR — Euro</option>
+                                        <option value="VES">🇻🇪 Bs. — Bolívar</option>
+                                    </select>
+                                </div>
+                                {invoiceData.currency !== 'USD' && (
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.5rem' }}>TASA {invoiceData.currency}/USD</label>
+                                        <input 
+                                            type="number" step="0.0001" style={inputStyle} 
+                                            value={invoiceData.exchangeRate}
+                                            onChange={e => setInvoiceData({...invoiceData, exchangeRate: Number(e.target.value)})}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.5rem' }}>MONTO TOTAL (USD)</label>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.5rem' }}>
+                                    MONTO TOTAL ({CURRENCY_SYMBOLS[invoiceData.currency] || '$'})
+                                </label>
                                 <input 
                                     type="number" style={{ ...inputStyle, fontSize: '1.5rem', fontWeight: 900, textAlign: 'center', color: '#6366f1' }}
                                     value={invoiceData.amount}
                                     onChange={e => setInvoiceData({...invoiceData, amount: Number(e.target.value)})}
                                 />
+                                {invoiceData.currency !== 'USD' && invoiceData.amount > 0 && (
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#64748b', textAlign: 'center' }}>
+                                        ≈ {CURRENCY_SYMBOLS['USD']}{ (invoiceData.amount / (invoiceData.exchangeRate || 1)).toLocaleString() } USD
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -1609,15 +1921,15 @@ export const HonorariosView: React.FC = () => {
                             </div>
 
                             <div style={{ gridColumn: 'span 2', border: '1px solid #f1f5f9', padding: '1.5rem', borderRadius: '16px', background: '#f8fafc' }}>
-                                <h4 style={{ margin: '0 0 1rem 0' }}>Proyección de Liquidez</h4>
+                                <h4 style={{ margin: '0 0 1rem 0' }}>Proyección de Liquidez (USD)</h4>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                                     <div>
                                         <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>Pendiente por cobrar</p>
-                                        <h3 style={{ margin: 0, color: '#ef4444' }}>${invoices.reduce((acc, curr) => acc + curr.balanceUsd, 0).toLocaleString()}</h3>
+                                        <h3 style={{ margin: 0, color: '#ef4444' }}>{CURRENCY_SYMBOLS['USD']}{invoices.reduce((acc, curr) => acc + curr.balanceUsd, 0).toLocaleString()}</h3>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>Facturado (MTD)</p>
-                                        <h3 style={{ margin: 0 }}>${invoices.reduce((acc, curr) => acc + curr.totalUsd, 0).toLocaleString()}</h3>
+                                        <h3 style={{ margin: 0 }}>{CURRENCY_SYMBOLS['USD']}{invoices.reduce((acc, curr) => acc + curr.totalUsd, 0).toLocaleString()}</h3>
                                     </div>
                                 </div>
                             </div>
@@ -1647,7 +1959,7 @@ export const HonorariosView: React.FC = () => {
                         </div>
                         
                         <p style={{ margin: '-1rem 0 1.5rem 0', color: '#64748b', fontSize: '0.9rem' }}>
-                            Factura: <strong>{selectedInvoice.number}</strong> | Pendiente: <strong style={{ color: '#ef4444' }}>${selectedInvoice.balanceUsd}</strong>
+                            Factura: <strong>{selectedInvoice.number}</strong> | Pendiente: <strong style={{ color: '#ef4444' }}>{CURRENCY_SYMBOLS[selectedInvoice.currency] || '$'}{selectedInvoice.balance.toLocaleString()}</strong>
                         </p>
 
                         <div style={{ display: 'grid', gap: '1.5rem' }}>
@@ -1666,15 +1978,16 @@ export const HonorariosView: React.FC = () => {
                                 </select>
                             </div>
 
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.5rem' }}>MONTO A COBRAR ({CURRENCY_SYMBOLS[selectedInvoice.currency] || '$'})</label>
+                                <input 
+                                    type="number" step="0.01" style={{ ...inputStyle, fontSize: '1.25rem', fontWeight: 900, color: '#16a34a' }}
+                                    value={paymentForm.amount}
+                                    onChange={e => setPaymentForm({...paymentForm, amount: Number(e.target.value)})}
+                                />
+                            </div>
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.5rem' }}>MONTO RECIBIDO ($)</label>
-                                    <input 
-                                        type="number" style={inputStyle} 
-                                        value={paymentForm.amount}
-                                        onChange={e => setPaymentForm({...paymentForm, amount: Number(e.target.value)})}
-                                    />
-                                </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.5rem' }}>FECHA DE PAGO</label>
                                     <input 
@@ -1737,14 +2050,22 @@ export const HonorariosView: React.FC = () => {
                                 </select>
                             </div>
                             
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>HORAS</label>
                                     <input type="number" step="0.5" style={inputStyle} value={timeForm.hours || 0} onChange={e => setTimeForm({...timeForm, hours: Number(e.target.value)})} />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>RATE ($)</label>
-                                    <input type="number" style={inputStyle} value={timeForm.rateUsd || 0} onChange={e => setTimeForm({...timeForm, rateUsd: Number(e.target.value)})} />
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>MONEDA</label>
+                                    <select style={inputStyle} value={timeForm.currency} onChange={e => setTimeForm({...timeForm, currency: e.target.value as any})}>
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="VES">VES</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>RATE ({CURRENCY_SYMBOLS[timeForm.currency]})</label>
+                                    <input type="number" style={inputStyle} value={timeForm.rate || 0} onChange={e => setTimeForm({...timeForm, rate: Number(e.target.value)})} />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>FECHA</label>
@@ -1798,7 +2119,7 @@ export const HonorariosView: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '1rem' }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>TIPO DE FEE</label>
                                     <select style={inputStyle} value={matterForm.feeType || 'FIXED'} onChange={e => setMatterForm({...matterForm, feeType: e.target.value as any})}>
@@ -1808,8 +2129,16 @@ export const HonorariosView: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>PRESUPUESTO ($)</label>
-                                    <input type="number" style={inputStyle} value={matterForm.budgetUsd || 0} onChange={e => setMatterForm({...matterForm, budgetUsd: Number(e.target.value)})} />
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>MONEDA</label>
+                                    <select style={inputStyle} value={matterForm.currency} onChange={e => setMatterForm({...matterForm, currency: e.target.value as any})}>
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="VES">VES</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>PRESUPUESTO ({CURRENCY_SYMBOLS[matterForm.currency || 'USD']})</label>
+                                    <input type="number" style={inputStyle} value={matterForm.budget || 0} onChange={e => setMatterForm({...matterForm, budget: Number(e.target.value)})} />
                                 </div>
                             </div>
                         </div>
@@ -1864,6 +2193,185 @@ export const HonorariosView: React.FC = () => {
                 .fade-in { animation: fadeIn 0.4s ease-out; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
             `}</style>
+
+            {/* ═══ MODAL TASAS DE CAMBIO ═══ */}
+            {showRatesModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10002, padding: '1rem' }}>
+                    <div className="premium-card fade-in" style={{ width: '100%', maxWidth: '780px', maxHeight: '90vh', overflow: 'auto', background: 'white', padding: '2.5rem' }}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                            <div>
+                                <h3 style={{ margin: 0, fontWeight: 900, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <Globe color="#6366f1" size={28}/> Gestión de Tasas y Conversión
+                                </h3>
+                                <p style={{ margin: '0.4rem 0 0', color: '#64748b', fontSize: '0.85rem', fontWeight: 500 }}>Control financiero multi-moneda para honorarios y gastos operativos</p>
+                            </div>
+                            <button onClick={() => setShowRatesModal(false)} className="btn-secondary" style={{ padding: '0.5rem', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <X size={20}/>
+                            </button>
+                        </div>
+
+                        {/* Widget de Conversión Rápida */}
+                        <div style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', borderRadius: '24px', padding: '2rem', marginBottom: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                <div style={{ background: 'rgba(255,255,255,0.1)', padding: '8px', borderRadius: '10px' }}><ArrowLeftRight color="#818cf8" size={20}/></div>
+                                <h4 style={{ margin: 0, color: 'white', fontWeight: 800, fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Calculadora en Tiempo Real</h4>
+                            </div>
+                            
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr auto 0.8fr 1.2fr', alignItems: 'center', gap: '1rem' }}>
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type="number" min="0" step="0.01"
+                                        value={convertAmount}
+                                        onChange={e => setConvertAmount(parseFloat(e.target.value) || 0)}
+                                        style={{ width: '100%', padding: '1rem 1rem', borderRadius: '16px', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', fontSize: '1.25rem', fontWeight: 900, outline: 'none', textAlign: 'center' }}
+                                    />
+                                </div>
+                                <select value={convertFrom} onChange={e => setConvertFrom(e.target.value as any)}
+                                    style={{ padding: '1rem', borderRadius: '16px', border: 'none', background: 'rgba(255,255,255,0.12)', color: 'white', fontWeight: 800, cursor: 'pointer', outline: 'none', appearance: 'none' }}>
+                                    <option value="USD">🇺🇸 USD</option>
+                                    <option value="EUR">🇪🇺 EUR</option>
+                                    <option value="VES">🇻🇪 VES</option>
+                                </select>
+                                <div style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 900, fontSize: '1.5rem' }}>⇉</div>
+                                <select value={convertTo} onChange={e => setConvertTo(e.target.value as any)}
+                                    style={{ padding: '1rem', borderRadius: '16px', border: 'none', background: 'rgba(255,255,255,0.12)', color: 'white', fontWeight: 800, cursor: 'pointer', outline: 'none', appearance: 'none' }}>
+                                    <option value="VES">🇻🇪 VES</option>
+                                    <option value="USD">🇺🇸 USD</option>
+                                    <option value="EUR">🇪🇺 EUR</option>
+                                </select>
+                                <div style={{ background: 'white', borderRadius: '16px', padding: '1rem', textAlign: 'center', minWidth: '140px' }}>
+                                    {(() => {
+                                        const key = `${convertFrom}_${convertTo}`;
+                                        const rate = latestRates[key] || 0;
+                                        const result = rate > 0 ? (convertAmount * rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—';
+                                        const sym = CURRENCY_SYMBOLS[convertTo] || '$';
+                                        return <span style={{ color: '#1e1b4b', fontWeight: 900, fontSize: '1.25rem' }}>{sym}{result}</span>;
+                                    })()}
+                                </div>
+                            </div>
+
+                            {/* Dashboard de Tasas Críticas */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem' }}>
+                                {[
+                                    { label: 'DÓLAR (BCV)', sub: 'USD → VES', key: 'USD_VES', color: '#10b981', sym: 'Bs.' },
+                                    { label: 'EURO (ECB)', sub: 'EUR → VES', key: 'EUR_VES', color: '#3b82f6', sym: 'Bs.' },
+                                    { label: 'VARIACIÓN Bs.', sub: 'VES → USD', key: 'VES_USD', color: '#f59e0b', sym: '$', dec: 6 },
+                                ].map((t, i) => (
+                                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                        <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', fontWeight: 800, textTransform: 'uppercase' }}>{t.label}</span>
+                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+                                            <span style={{ color: 'white', fontSize: '1.1rem', fontWeight: 900 }}>{t.sym}{latestRates[t.key]?.toLocaleString(undefined, { maximumFractionDigits: t.dec ?? 2 }) || 'N/A'}</span>
+                                            <span style={{ color: t.color, fontSize: '0.6rem', fontWeight: 800, background: `${t.color}20`, padding: '2px 6px', borderRadius: '4px' }}>LIVE</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Nueva Tasa e Historial */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '2rem' }}>
+                            {/* Registro */}
+                            <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '1.5rem', border: '1px solid #e2e8f0' }}>
+                                <h5 style={{ margin: '0 0 1.25rem', fontWeight: 800, color: '#1e293b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Calendar size={16} color="#6366f1"/> Nueva Entrada
+                                </h5>
+                                <div style={{ display: 'grid', gap: '1rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        <div>
+                                            <label style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.35rem' }}>DESDE</label>
+                                            <select value={rateForm.currencyFrom} onChange={e => setRateForm({...rateForm, currencyFrom: e.target.value as any})} style={{ ...inputStyle, padding: '0.5rem' }}>
+                                                <option value="USD">USD</option>
+                                                <option value="EUR">EUR</option>
+                                                <option value="VES">VES</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.35rem' }}>HACIA</label>
+                                            <select value={rateForm.currencyTo} onChange={e => setRateForm({...rateForm, currencyTo: e.target.value as any})} style={{ ...inputStyle, padding: '0.5rem' }}>
+                                                <option value="VES">VES</option>
+                                                <option value="USD">USD</option>
+                                                <option value="EUR">EUR</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.35rem' }}>VALOR DE CONVERSIÓN *</label>
+                                        <input type="number" step="0.00000001" value={rateForm.rate || ''} onChange={e => setRateForm({...rateForm, rate: parseFloat(e.target.value)})} style={inputStyle} placeholder="Ej: 36.52" />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.35rem' }}>FUENTE OFICIAL</label>
+                                        <select value={rateForm.source} onChange={e => setRateForm({...rateForm, source: e.target.value})} style={inputStyle}>
+                                            <option value="BCV">🏦 BCV (Banco Central Vzla)</option>
+                                            <option value="ECB">🇪🇺 ECB (European Central Bank)</option>
+                                            <option value="MANUAL">✍️ Actualización Manual</option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        className="btn-primary"
+                                        style={{ width: '100%', marginTop: '0.5rem' }}
+                                        disabled={savingRate || !rateForm.rate || rateForm.currencyFrom === rateForm.currencyTo}
+                                        onClick={async () => {
+                                            setSavingRate(true);
+                                            try {
+                                                await exchangeRateService.save(rateForm);
+                                                const [hist, latest] = await Promise.all([exchangeRateService.getAll(), exchangeRateService.getLatestAll()]);
+                                                setExchangeRates(hist);
+                                                setLatestRates(latest);
+                                                setRateForm({ currencyFrom: 'USD', currencyTo: 'VES', rate: 0, source: 'BCV' });
+                                            } catch (e: any) { alert(e.message); }
+                                            finally { setSavingRate(false); }
+                                        }}
+                                    >
+                                        {savingRate ? <RefreshCw className="spin" size={16}/> : <CheckCircle2 size={16}/>}
+                                        {' '}Guardar Registro
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Historial */}
+                            <div style={{ height: '400px', display: 'flex', flexDirection: 'column' }}>
+                                <h5 style={{ margin: '0 0 1rem', fontWeight: 800, color: '#1e293b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Clock size={16} color="#64748b"/> Historial Reciente
+                                </h5>
+                                <div style={{ flex: 1, overflow: 'auto', border: '1px solid #f1f5f9', borderRadius: '16px' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                        <thead style={{ position: 'sticky', top: 0, background: 'white', zIndex: 1, boxShadow: '0 1px 0 #f1f5f9' }}>
+                                            <tr>
+                                                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#64748b', textAlign: 'left' }}>FECHA</th>
+                                                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#64748b', textAlign: 'left' }}>PAR</th>
+                                                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#64748b', textAlign: 'left' }}>TASA</th>
+                                                <th style={{ padding: '1rem', fontSize: '0.65rem', color: '#64748b', textAlign: 'center' }}>ACC.</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {exchangeRates.map(r => (
+                                                <tr key={r.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: '#64748b' }}>{new Date(r.effectiveDate).toLocaleDateString()}</td>
+                                                    <td style={{ padding: '0.75rem 1rem' }}>
+                                                        <span style={{ fontWeight: 800, fontSize: '0.7rem', color: '#3730a3', background: '#e0e7ff', padding: '2px 8px', borderRadius: '6px' }}>{r.currencyFrom}/{r.currencyTo}</span>
+                                                    </td>
+                                                    <td style={{ padding: '0.75rem 1rem', fontWeight: 900, fontSize: '0.85rem' }}>{r.rate.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td>
+                                                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                                        <button onClick={async () => {
+                                                            if (!confirm('¿Eliminar esta tasa?')) return;
+                                                            await exchangeRateService.delete(r.id);
+                                                            setExchangeRates(exchangeRates.filter(x => x.id !== r.id));
+                                                            setLatestRates(await exchangeRateService.getLatestAll());
+                                                        }} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                                                            <Trash2 size={14}/>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
