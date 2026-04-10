@@ -10,13 +10,13 @@ export default defineConfig({
       output: {
         manualChunks: {
           // React core
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-react': ['react', 'react-dom'],
           // Supabase
           'vendor-supabase': ['@supabase/supabase-js'],
           // PDF generation
-          'vendor-pdf': ['jspdf', 'jspdf-autotable', 'html2canvas'],
-          // Text editor + sanitization
-          'vendor-editor': ['quill', 'dompurify'],
+          'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+          // Charts
+          'vendor-charts': ['recharts'],
           // Icons
           'vendor-icons': ['lucide-react'],
         },
