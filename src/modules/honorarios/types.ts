@@ -50,6 +50,7 @@ export interface Matter {
     contingencyPct: number;
     hourlyRate: number;      // Nueva
     hourlyRateUsd: number;
+    exchangeRate?: number;    // Nueva: Tasa utilizada para el presupuesto inicial
     openedAt: string;
     closedAt?: string;
     organizationId: string;
@@ -81,6 +82,7 @@ export interface TimeEntry {
     rateUsd: number;       // Base USD
     amount: number;        // Nueva: Monto nominal
     amountUsd: number;     // Columna generada
+    exchangeRate?: number; // Nueva: Tasa al momento del log de horas
     isBillable: boolean;
     isInvoiced: boolean;
     invoiceId?: string;
