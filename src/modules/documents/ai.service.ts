@@ -270,7 +270,6 @@ export const aiService: IAIService = {
             const content = data.content || data.choices?.[0]?.message?.content;
             if (error || !data || !content) {
                 console.error('Error in outcome prediction (Hub):', error || 'Sin contenido en respuesta');
-                console.log('DEBUG PREDICCION DATA:', data); // ← Para ver qué está devolviendo la nube de verdad
                 throw new Error('No se pudo calcular la predicción judicial.');
             }
             // Aseguramos que sea un objeto

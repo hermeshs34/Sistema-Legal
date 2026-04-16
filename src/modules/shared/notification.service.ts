@@ -19,7 +19,7 @@ export const notificationService = {
      * En producción, esto se integra con Resend/Twilio vía Supabase Edge Functions.
      */
     async send(payload: NotificationPayload): Promise<boolean> {
-        console.log(`📡 [NOTIFICACIÓN ENVIADA - ${payload.type.toUpperCase()}]`, payload);
+        // Log silenciado en producción — datos PII protegidos
         
         // Simulación de canal de salida
         const success = Math.random() > 0.05; // 95% de éxito simulado
@@ -67,9 +67,10 @@ export const notificationService = {
 
     /**
      * Recupera alertas de cumplimiento pendientes para hoy o vencidas.
+     * Filtro multi-tenant explícito como defensa en profundidad (complementa RLS).
      */
-    async getPendingAlerts(): Promise<any[]> {
-        const { data, error } = await supabase
+    async getPendingAlerts(organizationId?: string): Promise<any[]> {
+        let query = supabase
             .from('compliance_alerts')
             .select(`
                 *,
@@ -77,6 +78,12 @@ export const notificationService = {
             `)
             .eq('status', 'PENDING')
             .lte('alert_date', new Date().toISOString().split('T')[0]);
+
+        if (organizationId) {
+            query = query.eq('organization_id', organizationId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             console.error('Error fetching pending alerts:', error);
@@ -88,9 +95,9 @@ export const notificationService = {
     /**
      * Procesa y "envía" las alertas pendientes (Mock).
      */
-    async processDailyAlerts() {
-        const alerts = await this.getPendingAlerts();
-        console.log(`🕒 [MÓDULO 8] Procesando ${alerts.length} alertas programadas...`);
+    async processDailyAlerts(organizationId?: string) {
+        const alerts = await this.getPendingAlerts(organizationId);
+        // Procesamiento silencioso — trazabilidad vía tabla notification_logs
         
         for (const alert of alerts) {
             const item = alert.compliance_items;

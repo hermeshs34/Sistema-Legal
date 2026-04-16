@@ -49,7 +49,7 @@ export const legalKnowledgeService = {
             }
         ];
 
-        console.log('🌱 Iniciando indexación de conocimiento legal base...');
+        // Indexación silenciosa — trazabilidad vía document_vectors en DB
         
         for (const law of laws) {
             for (const fragment of law.fragments) {
@@ -65,6 +65,6 @@ export const legalKnowledgeService = {
             }
         }
         
-        console.log('✅ Conocimiento base indexado correctamente.');
+        // Indexación completada — verificar en tabla document_vectors
     }
 };

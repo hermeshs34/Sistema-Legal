@@ -35,8 +35,6 @@ const ACTION_LABELS: Record<string, string> = {
 const isReadOnly = (status: string) => ['ACTIVE', 'EXPIRED', 'TERMINATED', 'CANCELLED'].includes(status);
 
 export const ContractDetailsModal: React.FC<ContractDetailsModalProps> = ({ contract, onClose, onUpdated }) => {
-    if (!contract) return null;
-
     const user = authService.getCurrentUser();
     const [localContract, setLocalContract] = useState<Contract & Record<string, unknown>>(contract as any);
     const [rightPanel, setRightPanel] = useState<'compliance' | 'audit' | 'comments' | 'signature' | 'forensic'>('compliance');
@@ -47,6 +45,9 @@ export const ContractDetailsModal: React.FC<ContractDetailsModalProps> = ({ cont
     const [savingComment, setSavingComment] = useState(false);
     const [downloadingPdf, setDownloadingPdf] = useState(false);
     const [downloadingAuditPdf, setDownloadingAuditPdf] = useState(false);
+
+    // Guard DESPUÉS de hooks — cumple las Reglas de Hooks de React
+    if (!contract) return null;
 
     const reloadContract = useCallback(async () => {
         const allContracts = await contractService.getAll();

@@ -100,7 +100,12 @@ export const contractService = {
     },
 
     async getMetadata(id: string): Promise<any> {
-        const { data } = await supabase.from('contracts').select('metadata').eq('id', id).single();
+        const user = authService.getCurrentUser();
+        let query = supabase.from('contracts').select('metadata').eq('id', id);
+        if (user?.organizationId) {
+            query = query.eq('organization_id', user.organizationId);
+        }
+        const { data } = await query.single();
         return data?.metadata || {};
     }
 };

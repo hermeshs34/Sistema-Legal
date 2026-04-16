@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PenLine, ShieldCheck, FileText, Download, UserCheck, AlertTriangle } from 'lucide-react';
-import { contractService } from './contract.service.ts';
+import { supabase } from '../../core/supabase.ts';
 import { signatureService } from './signature.service.ts';
 import { SignaturePanel } from './SignaturePanel.tsx';
 import type { Contract } from './types.ts';
@@ -17,11 +17,45 @@ export const ExternalSignView: React.FC<ExternalSignViewProps> = ({ token }) => 
     useEffect(() => {
         const loadExternalDoc = async () => {
             try {
-                // Buscamos el contrato por el token (Pestaña c5)
-                const all = await contractService.getAll();
-                const found = all.find(c => c.signature_token === token);
-                
-                if (!found) throw new Error('El enlace de firma ha caducado o es inválido.');
+                // Búsqueda directa por token — NO depende de sesión autenticada
+                // RLS debe tener una política SELECT que permita acceso cuando signature_token coincide
+                const { data, error: dbError } = await supabase
+                    .from('contracts')
+                    .select('*')
+                    .eq('signature_token', token)
+                    .eq('signature_status', 'pending')
+                    .single();
+
+                if (dbError || !data) {
+                    throw new Error('El enlace de firma ha caducado, ya fue utilizado, o es inválido.');
+                }
+
+                // Mapear al tipo Contract del frontend
+                const found: Contract = {
+                    id: data.id,
+                    title: data.title,
+                    type: data.type,
+                    status: data.status,
+                    parties: data.parties,
+                    startDate: data.start_date,
+                    endDate: data.end_date,
+                    value: Number(data.value),
+                    currency: data.currency,
+                    assignedLawyerId: data.assigned_lawyer_id,
+                    assignedLawyerName: data.assigned_lawyer_name || undefined,
+                    description: data.description,
+                    content_draft: data.content_draft,
+                    file_url: data.file_url,
+                    metadata: data.metadata,
+                    organizationId: data.organization_id,
+                    signature_status: data.signature_status || 'unsigned',
+                    signature_hash: data.signature_hash || undefined,
+                    signature_token: data.signature_token || undefined,
+                    signed_at: data.signed_at || undefined,
+                    signed_by_name: data.signed_by_name || undefined,
+                    signed_by_email: data.signed_by_email || undefined,
+                };
+
                 setContract(found);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Error de enlace.');

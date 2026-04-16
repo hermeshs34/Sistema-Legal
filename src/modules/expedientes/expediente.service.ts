@@ -151,7 +151,7 @@ export const expedienteService = {
 
         // Auditoría
         await auditService.log({
-            entityType: 'contract', 
+            entityType: 'expediente', 
             entityId: id!,
             action: isNew ? 'create' : 'update',
             details: { module: 'expedientes', titulo: exp.titulo, status: exp.status },
@@ -174,7 +174,7 @@ export const expedienteService = {
             
         if (error) throw new Error(error.message);
         await auditService.log({
-            entityType: 'contract',
+            entityType: 'expediente',
             entityId: id,
             action: 'status_change' as any,
             details: { module: 'expedientes', newStatus: status },
