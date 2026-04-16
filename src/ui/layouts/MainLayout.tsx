@@ -64,8 +64,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, children, onLogout
                 zIndex: 20
             }}>
                 <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    <img src="/hermes-ai-compact.svg" alt="HermesAI Solutions" style={{ width: '100%', maxWidth: '200px', marginBottom: '0.5rem' }} />
-                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Plataforma LegalDoc VE</div>
+                    <div style={{ background: '#ffffff', borderRadius: '14px', padding: '12px 16px', marginBottom: '0.6rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                        <img src="/hermes-ai-logo.svg" alt="HermesAI Solutions" style={{ width: '100%', display: 'block' }} />
+                    </div>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.12em', textAlign: 'center' }}>Plataforma LegalDoc VE</div>
                 </div>
 
                 <nav style={{ padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

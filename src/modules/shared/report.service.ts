@@ -31,12 +31,16 @@ const BASE_STYLES = `
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        border-bottom: 3px solid #1e3a8a;
+        border-bottom: 3px solid #0077b5;
         padding-bottom: 24px;
         margin-bottom: 32px;
     }
-    .brand { font-weight: 900; font-size: 22px; color: #1e3a8a; letter-spacing: -0.02em; }
+    .brand-logo { display: flex; align-items: baseline; gap: 2px; }
+    .brand-hermes { font-weight: 900; font-size: 26px; color: #0077b5; letter-spacing: -0.02em; }
+    .brand-ai { font-weight: 900; font-size: 26px; color: #ff6b35; letter-spacing: -0.02em; }
+    .brand-solutions { font-size: 14px; color: #5a7184; font-weight: 500; margin-left: 4px; }
     .brand-sub { font-size: 11px; color: #64748b; font-weight: 600; margin-top: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .brand-accent { height: 3px; width: 120px; background: linear-gradient(90deg, #ff6b35, #f7941d); border-radius: 2px; margin-top: 6px; }
     .report-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-top: 8px; }
     .report-meta { text-align: right; font-size: 12px; color: #64748b; line-height: 1.8; }
     .report-meta strong { color: #0f172a; }
@@ -44,9 +48,9 @@ const BASE_STYLES = `
     /* ── Secciones ── */
     .section { margin-top: 32px; page-break-inside: avoid; }
     .section-title {
-        font-size: 11px; font-weight: 900; color: #1e3a8a;
+        font-size: 11px; font-weight: 900; color: #0077b5;
         text-transform: uppercase; letter-spacing: 1.5px;
-        border-left: 4px solid #1e3a8a; padding-left: 12px;
+        border-left: 4px solid #0077b5; padding-left: 12px;
         margin-bottom: 16px;
     }
 
@@ -175,14 +179,14 @@ async function reportFooter(reportCode: string, content: string): Promise<string
     return `
         <div class="report-footer" style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
             <div style="width: 100%; border-top: 2px solid #e2e8f0; padding-top: 20px;">
-                <div>Este documento ha sido generado por <strong>LegalDoc VE</strong> — Motor Forense v1.0</div>
+                <div>Este documento ha sido generado por <strong>HermesAI Solutions</strong> — Plataforma LegalDoc VE</div>
                 <div>Emisión: ${formatDateTime(ts)} &nbsp;·&nbsp; Reporte Nro: <strong>${reportCode}</strong></div>
             </div>
             
             <div style="display: flex; align-items: center; gap: 24px; background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; width: 100%; text-align: left;">
                 <img src="${qrCodeUrl(verificationUrl)}" width="80" height="80" style="border-radius: 8px; border: 1px solid #cbd5e1" />
                 <div style="flex: 1;">
-                    <div style="font-weight: 800; color: #1e3a8a; font-size: 10px; text-transform: uppercase; margin-bottom: 4px;">Certificado de Integridad Digital</div>
+                    <div style="font-weight: 800; color: #0077b5; font-size: 10px; text-transform: uppercase; margin-bottom: 4px;">Certificado de Integridad Digital — HermesAI Solutions</div>
                     <div class="hash" style="color: #64748b; font-size: 8px; word-break: break-all;">SHA-256: ${hash}</div>
                     <div style="font-size: 8px; color: #94a3b8; margin-top: 4px;">Escanee para verificar la validez de este reporte en la plataforma central.</div>
                 </div>
@@ -297,8 +301,9 @@ export const reportService = {
         const htmlBody = `
                 <div class="report-header">
                     <div>
-                        <div class="brand">LEGALTECH COMPLIANCE VE</div>
-                        <div class="brand-sub">Sistema Integral de Gestión Legal</div>
+                        <div class="brand-logo"><span class="brand-hermes">Hermes</span><span class="brand-ai">AI</span><span class="brand-solutions">Solutions</span></div>
+                        <div class="brand-accent"></div>
+                        <div class="brand-sub">Plataforma LegalDoc VE</div>
                         <div class="report-title">R-01 · Dossier de Estado Procesal</div>
                     </div>
                     <div class="report-meta">
@@ -422,7 +427,8 @@ export const reportService = {
         const htmlBody = `
                 <div class="report-header">
                     <div>
-                        <div class="brand">LEGALTECH COMPLIANCE VE</div>
+                        <div class="brand-logo"><span class="brand-hermes">Hermes</span><span class="brand-ai">AI</span><span class="brand-solutions">Solutions</span></div>
+                        <div class="brand-accent"></div>
                         <div class="brand-sub">Centro de Control de Obligaciones</div>
                         <div class="report-title">R-05 · Reporte de Vencimientos y Alertas Contractuales</div>
                     </div>
@@ -563,7 +569,8 @@ export const reportService = {
         const htmlBody = `
                 <div class="report-header">
                     <div>
-                        <div class="brand">LEGALTECH COMPLIANCE VE</div>
+                        <div class="brand-logo"><span class="brand-hermes">Hermes</span><span class="brand-ai">AI</span><span class="brand-solutions">Solutions</span></div>
+                        <div class="brand-accent"></div>
                         <div class="brand-sub">Oficina de Control Financiero Tecnológico</div>
                         <div class="report-title">R-09 · Informe de Inversión Tecnológica (FinOps Legal)</div>
                     </div>
@@ -663,7 +670,8 @@ export const reportService = {
         const htmlBody = `
                 <div class="report-header">
                     <div>
-                        <div class="brand">LEGALTECH COMPLIANCE VE</div>
+                        <div class="brand-logo"><span class="brand-hermes">Hermes</span><span class="brand-ai">AI</span><span class="brand-solutions">Solutions</span></div>
+                        <div class="brand-accent"></div>
                         <div class="brand-sub">Gestión Procesal</div>
                         <div class="report-title">R-02 · Acta de Audiencia — ${isPast ? 'POST AUDIENCIA' : 'BRIEF PRE AUDIENCIA'}</div>
                     </div>
@@ -760,7 +768,8 @@ export const reportService = {
         const htmlBody = `
                 <div class="report-header">
                     <div>
-                        <div class="brand">LEGALTECH COMPLIANCE VE</div>
+                        <div class="brand-logo"><span class="brand-hermes">Hermes</span><span class="brand-ai">AI</span><span class="brand-solutions">Solutions</span></div>
+                        <div class="brand-accent"></div>
                         <div class="brand-sub">Oficina de Gestión de Casos</div>
                         <div class="report-title">R-03 · Informe de Cierre de Caso</div>
                     </div>
