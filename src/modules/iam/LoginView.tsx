@@ -60,29 +60,30 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 alignItems: 'center'
             }}>
 
-                {/* Header Icon Block */}
+                {/* Logo corporativo HermesAI Solutions */}
                 <div style={{
                     width: '100%',
-                    background: 'linear-gradient(90deg, #2563eb 0%, #4f46e5 100%)', // Blue/Indigo gradient
-                    height: '60px',
-                    borderRadius: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
                     marginBottom: '1.5rem',
-                    boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)'
+                    textAlign: 'center'
                 }}>
-                    <ShieldCheck size={32} color="white" />
+                    <img src="/hermes-ai-logo.svg" alt="HermesAI Solutions" style={{ width: '280px', maxWidth: '100%', marginBottom: '0.75rem' }} />
+                    <div style={{
+                        background: 'linear-gradient(90deg, #0077b5 0%, #004182 100%)',
+                        height: '3px',
+                        borderRadius: '2px',
+                        width: '60%',
+                        margin: '0 auto 1rem auto'
+                    }} />
                 </div>
 
                 <h1 style={{
-                    fontSize: '1.875rem',
-                    color: '#1e3a8a', // Dark blue text
+                    fontSize: '1.5rem',
+                    color: '#1e3a8a',
                     marginBottom: '0.25rem',
                     textAlign: 'center',
                     fontWeight: 800
                 }}>
-                    LegalDoc VE
+                    Plataforma LegalDoc VE
                 </h1>
                 <p style={{
                     color: '#64748b',

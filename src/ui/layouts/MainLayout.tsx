@@ -63,11 +63,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, children, onLogout
                 height: '100vh',
                 zIndex: 20
             }}>
-                <div style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    <div style={{ background: 'white', padding: '4px', borderRadius: '8px', display: 'flex' }}>
-                        <ShieldCheck size={24} color="var(--legal-900)" />
-                    </div>
-                    <span style={{ fontSize: '1.25rem', fontWeight: 700, whiteSpace: 'nowrap' }}>LegalDoc VE</span>
+                <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <img src="/hermes-ai-compact.svg" alt="HermesAI Solutions" style={{ width: '100%', maxWidth: '200px', marginBottom: '0.5rem' }} />
+                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Plataforma LegalDoc VE</div>
                 </div>
 
                 <nav style={{ padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

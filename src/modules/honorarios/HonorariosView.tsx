@@ -57,6 +57,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import 'jspdf-autotable';
 import { supabase } from '../../core/supabase.ts';
+import { drawPdfBrandHeader, drawPdfBrandFooter } from '../shared/pdf-brand.ts';
 
 const inputStyle: React.CSSProperties = {
     width: '100%', padding: '0.75rem 1rem', borderRadius: '12px',
@@ -544,17 +545,12 @@ export const HonorariosView: React.FC = () => {
 
     const handleExportPDF = () => {
         const doc = new jsPDF();
-        const now = new Date();
         
-        // Header
-        doc.setFontSize(22);
-        doc.setTextColor(30, 27, 75);
-        doc.text("LegalDoc VE", 14, 20);
-        
-        doc.setFontSize(10);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`REPORTE FINANCIERO CONSOLIDADO (${presentationCurrency})`, 14, 28);
-        doc.text(`Fecha de emisión: ${now.toLocaleString()}`, 14, 34);
+        // Header corporativo HermesAI
+        const contentY = drawPdfBrandHeader(doc, {
+            reportRef: `RPT-FIN-${new Date().toISOString().split('T')[0].replace(/-/g, '')}`,
+            subtitle: `REPORTE FINANCIERO CONSOLIDADO (${presentationCurrency})`
+        });
         
         // KPIs en PDF
         const totalBudgeted = matters.reduce((sum, m) => sum + m.budgetUsd, 0);
@@ -562,8 +558,8 @@ export const HonorariosView: React.FC = () => {
         
         doc.setFontSize(12);
         doc.setTextColor(0, 0, 0);
-        doc.text(`TOTAL PRESUPUESTADO: ${renderFmt(totalBudgeted)}`, 14, 45);
-        doc.text(`TOTAL COBRADO: ${renderFmt(totalPaidValue)}`, 14, 52);
+        doc.text(`TOTAL PRESUPUESTADO: ${renderFmt(totalBudgeted)}`, 14, contentY + 4);
+        doc.text(`TOTAL COBRADO: ${renderFmt(totalPaidValue)}`, 14, contentY + 11);
         
         // Tabla de Facturación
         const tableData = invoices.map(i => {
@@ -580,7 +576,7 @@ export const HonorariosView: React.FC = () => {
         });
 
         autoTable(doc, {
-            startY: 65,
+            startY: contentY + 22,
             head: [['Factura', 'Fecha', 'Cliente', 'Divisa', 'Monto Nom.', `Total (${presentationCurrency})`, 'Saldo Pnd.', 'Estado']],
             body: tableData,
             theme: 'striped',
@@ -588,13 +584,14 @@ export const HonorariosView: React.FC = () => {
             styles: { fontSize: 8 }
         });
         
-        // Firma Digital / QR Mock
-        const finalY = (doc as any).lastAutoTable.finalY + 20;
-        doc.setFontSize(8);
-        doc.text("Este reporte ha sido certificado digitalmente bajo el estándar LegalDoc VE v1.0.", 14, finalY);
-        doc.text(`Consolidado en ${presentationCurrency} según tasas vigentes.`, 14, finalY + 5);
+        // Pie corporativo HermesAI
+        drawPdfBrandFooter(doc, { generatedBy: 'Sistema LegalDoc VE' });
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        const tblFinalY = (doc as any).lastAutoTable.finalY + 10;
+        doc.text(`Consolidado en ${presentationCurrency} según tasas vigentes.`, 14, tblFinalY);
 
-        doc.save(`reporte_financiero_${presentationCurrency}_${now.toISOString().split('T')[0]}.pdf`);
+        doc.save(`reporte_financiero_${presentationCurrency}_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     const handleExportCSV = () => {
@@ -623,21 +620,17 @@ export const HonorariosView: React.FC = () => {
 
     const handleExportExpensesPDF = (filtered: MatterExpense[]) => {
         const doc = new jsPDF();
-        const now = new Date();
         
-        doc.setFontSize(22);
-        doc.setTextColor(30, 27, 75);
-        doc.text("LegalDoc VE — Control de Gastos", 14, 20);
-        
-        doc.setFontSize(10);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`DESGLOSE CONSOLIDADO EN (${presentationCurrency})`, 14, 28);
-        doc.text(`Generado el: ${now.toLocaleString()}`, 14, 34);
+        // Header corporativo HermesAI
+        const contentY = drawPdfBrandHeader(doc, {
+            reportRef: `RPT-GST-${new Date().toISOString().split('T')[0].replace(/-/g, '')}`,
+            subtitle: `CONTROL DE GASTOS — DESGLOSE (${presentationCurrency})`
+        });
         
         const totalUsd = filtered.reduce((s, e) => s + e.amountUsd, 0);
         doc.setFontSize(12);
         doc.setTextColor(0, 0, 0);
-        doc.text(`TOTAL GASTOS CONSOLIDADOS: ${renderFmt(totalUsd)}`, 14, 45);
+        doc.text(`TOTAL GASTOS CONSOLIDADOS: ${renderFmt(totalUsd)}`, 14, contentY + 4);
 
         const tableData = filtered.map(exp => {
             const mat = matters.find(m => m.id === exp.matterId);
@@ -653,7 +646,7 @@ export const HonorariosView: React.FC = () => {
         });
 
         autoTable(doc, {
-            startY: 55,
+            startY: contentY + 14,
             head: [['Fecha', 'Asunto', 'Cat.', 'Descripción', 'Divisa', 'Nominal', `Total (${presentationCurrency})`]],
             body: tableData,
             theme: 'grid',
@@ -661,11 +654,10 @@ export const HonorariosView: React.FC = () => {
             styles: { fontSize: 7 }
         });
         
-        const finalY = (doc as any).lastAutoTable.finalY + 15;
-        doc.setFontSize(8);
-        doc.text("Este reporte ha sido generado bajo los estándares de transparencia financiera LegalDoc VE.", 14, finalY);
+        // Pie corporativo HermesAI
+        drawPdfBrandFooter(doc, { generatedBy: 'Sistema LegalDoc VE' });
 
-        doc.save(`reporte_gastos_${presentationCurrency}_${now.toISOString().split('T')[0]}.pdf`);
+        doc.save(`reporte_gastos_${presentationCurrency}_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     const renderClients = () => (

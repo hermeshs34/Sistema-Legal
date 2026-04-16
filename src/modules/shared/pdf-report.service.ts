@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Contract } from '../contracts/types.ts';
 import type { AuditLog } from './audit.service.ts';
+import { drawPdfBrandHeader, drawPdfBrandFooter } from './pdf-brand.ts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,33 +58,22 @@ export const pdfReportService = {
         const reportNumber = generateReportNumber('RPT-CONT-001');
         const generatedAt = fmtDate(new Date().toISOString());
 
-        // Header
-        doc.setFontSize(20);
-        doc.setTextColor(15, 23, 42); // slate-900
-        doc.setFont('helvetica', 'bold');
-        doc.text('LegalDoc VE', 20, 20);
-        
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139); // slate-500
-        doc.text('PLATAFORMA DE COMPLIANCE LEGAL - CERTIFICACION FORENSE', 20, 25);
-
-        doc.setFontSize(9);
-        doc.setTextColor(15, 23, 42);
-        doc.text(`REF: ${reportNumber}`, 190, 20, { align: 'right' });
-        doc.text(`FECHA: ${generatedAt}`, 190, 25, { align: 'right' });
-
-        doc.setDrawColor(15, 23, 42);
-        doc.line(20, 30, 190, 30);
+        // Header corporativo HermesAI
+        const contentY = drawPdfBrandHeader(doc, {
+            reportRef: reportNumber,
+            subtitle: 'CERTIFICACION FORENSE DE INSTRUMENTO LEGAL',
+            date: generatedAt
+        });
 
         // Title
         doc.setFillColor(30, 41, 59); // slate-800
-        doc.roundedRect(20, 38, 170, 25, 3, 3, 'F');
+        doc.roundedRect(20, contentY, 170, 25, 3, 3, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(8);
-        doc.text('CERTIFICADO DE INSTRUMENTO LEGAL', 25, 45);
+        doc.text('CERTIFICADO DE INSTRUMENTO LEGAL', 25, contentY + 7);
         doc.setFontSize(14);
         const safeTitle = (contract.title || 'SIN TITULO').replace(/[\u0080-\uFFFF]/g, c => c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
-        doc.text(safeTitle.toUpperCase().substring(0, 60), 25, 55);
+        doc.text(safeTitle.toUpperCase().substring(0, 60), 25, contentY + 17);
 
         // General Info Table
         const typeLabels: Record<string, string> = {
@@ -91,7 +81,7 @@ export const pdfReportService = {
         };
 
         autoTable(doc, {
-            startY: 70,
+            startY: contentY + 32,
             head: [['CAMPO', 'DETALLE REGISTRADO']],
             body: [
                 ['ID CONTRATO', contract.id],
@@ -162,12 +152,8 @@ export const pdfReportService = {
             bodyStyles: { fontSize: 7 }
         });
 
-        // Certification Seal
-        const finalY = 275;
-        doc.setFontSize(7);
-        doc.setTextColor(148, 163, 184);
-        doc.text('ESTE DOCUMENTO ES UNA REPRESENTACION IMPRESA DE UN REGISTRO ELECTRONICO PROPIEDAD DE LEGALDOC VE.', 105, finalY, { align: 'center' });
-        doc.text('TODA ALTERACION DE ESTE CERTIFICADO INVALIDA SU VALIDEZ LEGAL.', 105, finalY + 4, { align: 'center' });
+        // Sello corporativo HermesAI
+        drawPdfBrandFooter(doc, { generatedBy: opts.generatedBy?.name });
 
         const safeFilename = (contract.title || 'contrato').replace(/[^a-zA-Z0-9_\-]/g, '_');
         doc.save(`${safeFilename}_CERTIFICADO.pdf`);
@@ -181,16 +167,20 @@ export const pdfReportService = {
         const doc = new jsPDF('p', 'mm', 'a4');
         const reportNumber = generateReportNumber('RPT-CONT-003');
 
-        doc.setFontSize(18);
-        doc.text('Bitacora de Auditoria Forense', 20, 20);
+        // Header corporativo HermesAI
+        const contentY = drawPdfBrandHeader(doc, {
+            reportRef: reportNumber,
+            subtitle: 'BITACORA DE AUDITORIA FORENSE'
+        });
+
         doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
         const safeContractTitle = (contract.title || 'Sin titulo').replace(/[\u0080-\uFFFF]/g, c => c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
-        doc.text(`CONTRATO: ${safeContractTitle}`, 20, 28);
-        doc.text(`EMISION: ${fmtDate(new Date().toISOString())}`, 190, 20, { align: 'right' });
-        doc.line(20, 32, 190, 32);
+        doc.text(`CONTRATO: ${safeContractTitle}`, 20, contentY + 4);
+
 
         autoTable(doc, {
-            startY: 40,
+            startY: contentY + 10,
             head: [['FECHA/HORA', 'ACCION', 'USUARIO', 'MENSAJE / EVIDENCIA']],
             body: auditLogs.length > 0 ? auditLogs.map(l => {
                 const details = l.details as any;
@@ -209,9 +199,8 @@ export const pdfReportService = {
             bodyStyles: { fontSize: 8 }
         });
 
-        doc.setFontSize(8);
-        doc.setTextColor(148, 163, 184);
-        doc.text(`Generado por: ${generatedBy.name} (${generatedBy.role}) - REF: ${reportNumber}`, 20, 285);
+        // Pie corporativo HermesAI
+        drawPdfBrandFooter(doc, { generatedBy: `${generatedBy.name} (${generatedBy.role})` });
 
         doc.save(`BITACORA_${contract.id.substring(0, 8)}.pdf`);
     }
