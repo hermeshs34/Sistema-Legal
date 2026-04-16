@@ -7,6 +7,7 @@ import { contractService } from './contract.service.ts';
 import { SignaturePanel } from './SignaturePanel.tsx';
 import { pdfReportService } from '../shared/pdf-report.service.ts';
 import { reportService } from '../shared/report.service.ts';
+import { supabase } from '../../core/supabase.ts';
 
 interface ContractDetailsModalProps {
     contract: Contract;
@@ -33,6 +34,56 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const isReadOnly = (status: string) => ['ACTIVE', 'EXPIRED', 'TERMINATED', 'CANCELLED'].includes(status);
+
+/** Visor seguro: genera signedUrl temporal para archivos en buckets privados */
+const SecureDocViewer: React.FC<{ fileUrl: string }> = ({ fileUrl }) => {
+    const [signedUrl, setSignedUrl] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState(false);
+
+    useEffect(() => {
+        const resolve = async () => {
+            // Si ya es una URL pública completa, usarla directamente
+            if (fileUrl.startsWith('http')) {
+                setSignedUrl(fileUrl);
+                return;
+            }
+            // Generar URL firmada temporal (1 hora)
+            const { data, error } = await supabase.storage
+                .from('contracts')
+                .createSignedUrl(fileUrl, 3600);
+            if (error || !data?.signedUrl) {
+                setLoadError(true);
+                return;
+            }
+            setSignedUrl(data.signedUrl);
+        };
+        resolve();
+    }, [fileUrl]);
+
+    if (loadError) {
+        return (
+            <div style={{ height: '100%', minHeight: '600px', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem', color: '#64748b' }}>
+                <FileText size={40} color="#dc2626" />
+                <p style={{ fontWeight: 700 }}>No se pudo cargar el documento</p>
+                <p style={{ fontSize: '0.8rem' }}>El archivo puede haber sido eliminado o el acceso ha caducado.</p>
+            </div>
+        );
+    }
+
+    if (!signedUrl) {
+        return (
+            <div style={{ height: '100%', minHeight: '600px', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <p style={{ color: '#94a3b8', fontWeight: 600 }}>Cargando documento seguro...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ height: '100%', minHeight: '600px', background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
+            <iframe src={signedUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Visor PDF Seguro" />
+        </div>
+    );
+};
 
 export const ContractDetailsModal: React.FC<ContractDetailsModalProps> = ({ contract, onClose, onUpdated }) => {
     const user = authService.getCurrentUser();
@@ -236,9 +287,7 @@ export const ContractDetailsModal: React.FC<ContractDetailsModalProps> = ({ cont
                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', overflow: 'hidden' }}>
                     <div style={{ overflowY: 'auto', background: '#f1f5f9', padding: '2rem' }}>
                         {localContract.file_url ? (
-                            <div style={{ height: '100%', minHeight: '600px', background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
-                                <iframe src={localContract.file_url} style={{ width: '100%', height: '100%', border: 'none' }} title="Visor PDF" />
-                            </div>
+                            <SecureDocViewer fileUrl={localContract.file_url} />
                         ) : localContract.content_draft ? (
                             <div style={{
                                 background: '#fff', padding: '4rem', borderRadius: '8px',
