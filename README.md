@@ -1,6 +1,6 @@
 # LegalDoc VE — Plataforma Enterprise de Compliance Legal
 
-> **Plataforma SaaS** para la gestión de compliance normativo y contratos legales en Venezuela y mercados internacionales. Powered by React 18, Supabase y OpenAI.
+> **Plataforma SaaS** para la gestión de compliance normativo, honorarios y contratos legales en Venezuela y mercados internacionales. Powered by React 19, Supabase y OpenAI.
 
 ---
 
@@ -48,10 +48,12 @@ LegalDoc VE automatiza el cumplimiento regulatorio empresarial mediante:
 ## 🏗️ Stack Tecnológico
 
 ```
-Frontend:  React 18 + Vite + TypeScript (strict)
+Frontend:  React 19 + Vite 7 + TypeScript (strict)
 Estilos:   CSS Variables HSL + Framer Motion (animaciones)
 Backend:   Supabase (Postgres + Auth + Storage + Edge Functions)
 IA:        OpenAI API (análisis de contratos y compliance)
+Reportes:  jsPDF + jsPDF-AutoTable (PDFs certificados)
+Gráficos:  Recharts (Dashboard y métricas financieras)
 ```
 
 ---
@@ -62,10 +64,14 @@ IA:        OpenAI API (análisis de contratos y compliance)
 |---|---|---|
 | Dashboard | `/dashboard` | Vista 360 de salud legal de la empresa |
 | Documentos | `/documents` | Centro de documentos con análisis IA |
-| Contratos | `/contracts` | Editor rich-text, gestión de contratos |
+| Contratos | `/contracts` | Editor rich-text, firma electrónica, visor PDF seguro |
 | Compliance | `/compliance` | Auditoría, ítems de cumplimiento |
 | Matriz de Riesgos | `/risks` | Visualización de riesgos por área |
 | Equipo Legal | `/lawyers` | Directorio de abogados con INPREABOGADO |
+| Expedientes | `/judicial` | Gestión de expedientes judiciales, actuaciones y audiencias |
+| Honorarios | `/honorarios` | Facturación, time tracking, gastos y sistema multi-moneda (USD/EUR/VES) |
+| Calendario | `/calendar` | Agenda legal con eventos y audiencias |
+| Parámetros | `/parameters` | Configuración del sistema y tasas de cambio |
 | Usuarios | `/users` | IAM: gestión de usuarios y roles |
 
 ---

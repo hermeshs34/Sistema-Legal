@@ -15,7 +15,7 @@
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      FRONTEND (SPA)                              │
-│           React 18 + Vite + TypeScript + Framer Motion          │
+│           React 19 + Vite 7 + TypeScript + Framer Motion          │
 │                                                                   │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐   │
 │  │Dashboard │  │Documents │  │Contracts │  │  Compliance  │   │
@@ -71,9 +71,6 @@
 Usuario → LoginView.tsx
     │
     ├─→ authService.login(email, password)
-    │       │
-    │       ├─[password=MasterLegal2026]→ Bypass EMERGENCY (⚠️ eliminar)
-    │       │       └─→ Query directa a tabla `profiles` en Supabase
     │       │
     │       └─[password normal]→ supabase.auth.signInWithPassword()
     │               └─→ Query a tabla `profiles` por auth.user.id
@@ -155,7 +152,8 @@ const [currentView, setCurrentView] = useState('dashboard');
 
 // Vistas disponibles:
 // 'dashboard' | 'documents' | 'contracts' | 'compliance' | 
-// 'risks' | 'lawyers' | 'users'
+// 'risks' | 'lawyers' | 'judicial' | 'users' | 'honorarios' | 
+// 'calendar' | 'parameters' | 'flows' | 'settings'
 ```
 
 No hay `react-router-dom`. El cambio de vista es via `onChangeView` prop del `MainLayout`.
@@ -166,14 +164,15 @@ No hay `react-router-dom`. El cambio de vista es via `onChangeView` prop del `Ma
 
 ```json
 {
-  "react": "^18.x",
-  "typescript": "^5.x",
-  "vite": "^6.x",
+  "react": "^19.x",
+  "typescript": "^5.9.x",
+  "vite": "^7.x",
   "@supabase/supabase-js": "^2.x",
   "framer-motion": "^12.x",
-  "axios": "^1.x",
-  "quill": "(editor rich-text en ContractEditor)",
-  "recharts": "(gráficos en Dashboard y RiskMatrix)"
+  "jspdf": "(reportes PDF certificados)",
+  "jspdf-autotable": "(tablas en reportes PDF)",
+  "recharts": "(gráficos en Dashboard y RiskMatrix)",
+  "lucide-react": "(iconografía del sistema)"
 }
 ```
 
@@ -206,4 +205,4 @@ cd server && npm run dev     # Express en puerto 3000
 
 ---
 
-*Última actualización: 21/03/2026 | Mantenido por: Antigravity*
+*Última actualización: 16/04/2026 | Mantenido por: Antigravity*
