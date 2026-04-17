@@ -1293,7 +1293,7 @@ export const HonorariosView: React.FC = () => {
                                         </td>
                                         <td style={{ padding: '0.875rem 1rem' }}>
                                             <button
-                                                onClick={() => { setExpenseForm(exp); setReceiptFile(null); setShowExpenseModal(true); }}
+                                                onClick={() => { setExpenseForm({ ...exp, matterId: exp.matterId ?? '', date: exp.date ?? new Date().toISOString().split('T')[0], description: exp.description ?? '', category: exp.category ?? 'OTHER', amount: exp.amount ?? exp.amountUsd ?? 0, paidBy: exp.paidBy ?? 'FIRM', isReimbursed: exp.isReimbursed ?? false }); setReceiptFile(null); setShowExpenseModal(true); }}
                                                 style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#6366f1' }}
                                             ><Edit2 size={14}/></button>
                                         </td>
