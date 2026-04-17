@@ -42,36 +42,17 @@ const SecureDocViewer: React.FC<{ fileUrl: string }> = ({ fileUrl }) => {
 
     useEffect(() => {
         const resolve = async () => {
-            let storagePath = fileUrl;
-
-            // Si es una URL completa de Supabase Storage, extraer el path relativo
+            // Si ya es una URL pública completa, usarla directamente
             if (fileUrl.startsWith('http')) {
-                const bucketPatterns = [
-                    /\/storage\/v1\/object\/public\/legal-documents\/(.+)$/,
-                    /\/storage\/v1\/object\/public\/contracts\/(.+)$/,
-                ];
-                let matched = false;
-                for (const pattern of bucketPatterns) {
-                    const m = fileUrl.match(pattern);
-                    if (m) {
-                        storagePath = decodeURIComponent(m[1]);
-                        matched = true;
-                        break;
-                    }
-                }
-                // Si no es una URL de Supabase Storage, abrir directamente
-                if (!matched) {
-                    setSignedUrl(fileUrl);
-                    return;
-                }
+                setSignedUrl(fileUrl);
+                return;
             }
-
-            // Generar URL firmada temporal (1 hora) desde el bucket real
+            // Generar URL firmada temporal (1 hora)
             const { data, error } = await supabase.storage
                 .from('legal-documents')
-                .createSignedUrl(storagePath, 3600);
+                .createSignedUrl(fileUrl, 3600);
             if (error || !data?.signedUrl) {
-                console.error('SecureDocViewer: signedUrl error', error, 'path:', storagePath);
+                console.error('SecureDocViewer: signedUrl error', error, 'path:', fileUrl);
                 setLoadError(true);
                 return;
             }
@@ -86,7 +67,6 @@ const SecureDocViewer: React.FC<{ fileUrl: string }> = ({ fileUrl }) => {
                 <FileText size={40} color="#dc2626" />
                 <p style={{ fontWeight: 700 }}>No se pudo cargar el documento</p>
                 <p style={{ fontSize: '0.8rem' }}>El archivo puede haber sido eliminado o el acceso ha caducado.</p>
-                <button onClick={() => window.open(fileUrl, '_blank')} style={{ padding: '0.5rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Abrir enlace directo</button>
             </div>
         );
     }

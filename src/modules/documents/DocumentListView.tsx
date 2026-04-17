@@ -80,26 +80,19 @@ export const DocumentListView: React.FC<DocumentListViewProps> = ({ user }) => {
     const handleDownload = async (path: string) => {
         if (!path) return;
         
-        let storagePath = path;
-
-        // Si es una URL completa de Supabase Storage, extraer path relativo
+        // Si ya es una URL completa (http), la abrimos directo (bucket público)
         if (path.startsWith('http')) {
-            const m = path.match(/\/storage\/v1\/object\/public\/legal-documents\/(.+)$/);
-            if (m) {
-                storagePath = decodeURIComponent(m[1]);
-            } else {
-                // URL externa no-Supabase, abrir directo
-                window.open(path, '_blank');
-                return;
-            }
+            window.open(path, '_blank');
+            return;
         }
 
         try {
-            const signedUrl = await documentService.getDownloadUrl(storagePath);
+            // Si es un path interno, generamos la URL firmada
+            const signedUrl = await documentService.getDownloadUrl(path);
             if (signedUrl) {
                 window.open(signedUrl, '_blank');
             } else {
-                alert('No se pudo generar el enlace de descarga. Verifique que el archivo exista en el almacenamiento.');
+                alert('No se pudo generar el enlace de descarga.');
             }
         } catch (err) {
             console.error('Error in download:', err);
