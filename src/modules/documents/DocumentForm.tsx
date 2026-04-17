@@ -684,11 +684,29 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({ initialData, onClose
                                 </label>
 
                                 {formData.fileUrl && !selectedFile && (
-                                    <a href={formData.fileUrl} target="_blank" rel="noreferrer" style={{
-                                        fontSize: '0.85rem',
-                                        color: '#2563eb',
-                                        textDecoration: 'underline'
-                                    }}>
+                                    <a
+                                        href="#"
+                                        onClick={async (e) => {
+                                            e.preventDefault();
+                                            const url = formData.fileUrl!;
+                                            if (url.startsWith('http')) {
+                                                window.open(url, '_blank');
+                                            } else {
+                                                const signedUrl = await documentService.getDownloadUrl(url);
+                                                if (signedUrl) {
+                                                    window.open(signedUrl, '_blank');
+                                                } else {
+                                                    alert('No se pudo generar el enlace del archivo.');
+                                                }
+                                            }
+                                        }}
+                                        style={{
+                                            fontSize: '0.85rem',
+                                            color: '#2563eb',
+                                            textDecoration: 'underline',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
                                         Ver archivo actual
                                     </a>
                                 )}
