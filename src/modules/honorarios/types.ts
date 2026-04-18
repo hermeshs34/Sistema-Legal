@@ -92,7 +92,7 @@ export interface TimeEntry {
 
 // ── Gastos ───────────────────────────────────────────────
 export type ExpenseCategory = 'COURT_FEE' | 'NOTARY' | 'EXPERT' | 'TRAVEL' | 'PRINTING' | 'APOSTILLE' | 'OTHER';
-export type Currency = 'USD' | 'EUR' | 'VES';
+export type Currency = 'USD' | 'EUR' | 'VES' | 'COP';
 
 export interface MatterExpense {
     id: string;
@@ -158,7 +158,8 @@ export interface Invoice {
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
     USD: '$',
     EUR: '€',
-    VES: 'Bs.'
+    VES: 'Bs.',
+    COP: '$'
 };
 
 // ── Pagos ────────────────────────────────────────────────
