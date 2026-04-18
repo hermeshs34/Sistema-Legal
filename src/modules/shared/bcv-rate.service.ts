@@ -3,11 +3,11 @@ import { parametersService } from '../parameters/parameters.service.ts';
 
 // ══════════════════════════════════════════════════════════════
 // currency.service.ts — Motor Multimoneda LegalDoc VE
-// Soporta: USD, VES, EUR, COP
+// Soporta: USD, VES, EUR, CNY
 // Fuentes: BCV, BCE, API internacional
 // ══════════════════════════════════════════════════════════════
 
-export type SupportedCurrency = 'USD' | 'EUR' | 'VES' | 'COP';
+export type SupportedCurrency = 'USD' | 'EUR' | 'VES' | 'CNY';
 
 export interface CurrencyRate {
     from: SupportedCurrency;
@@ -32,7 +32,6 @@ export const CURRENCY_CONFIG: Record<SupportedCurrency, { symbol: string; name: 
     USD: { symbol: '$',   name: 'Dólar USA',          flag: '🇺🇸', decimals: 2 },
     EUR: { symbol: '€',   name: 'Euro',               flag: '🇪🇺', decimals: 2 },
     VES: { symbol: 'Bs.', name: 'Bolívar Soberano',   flag: '🇻🇪', decimals: 2 },
-    COP: { symbol: '$',   name: 'Peso Colombiano',    flag: '🇨🇴', decimals: 0 },
     CNY: { symbol: '¥',   name: 'Yuan Chino',          flag: '🇨🇳', decimals: 2 },
 };
 
