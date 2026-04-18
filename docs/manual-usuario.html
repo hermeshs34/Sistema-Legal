@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Usuario — HermesAI LegalTech Compliance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #059669 0%, #064e3b 100%)
+        }
+
+        .accent-gradient {
+            background: linear-gradient(135deg, #ff6b35 0%, #f7941d 100%)
+        }
+
+        .sticky-toc {
+            top: 5rem
+        }
+
+        .step-dot {
+            width: 36px;
+            height: 36px
+        }
+
+        .section-icon {
+            width: 60px;
+            height: 60px
+        }
+
+        .feature-card:hover {
+            transform: translateY(-3px);
+            transition: all 0.3s ease
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #e5e7eb;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            width: 100%
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #059669 0%, #064e3b 100%);
+            width: 0%;
+            transition: width 0.3s
+        }
+
+        @media print {
+
+            nav,
+            aside,
+            .progress-bar,
+            .no-print {
+                display: none !important
+            }
+
+            body {
+                background: white !important
+            }
+
+            .feature-card {
+                break-inside: avoid
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <div class="progress-bar">
+        <div class="progress-bar-fill" id="readingProgress"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center mr-3">
+                        <i class="fas fa-scale-balanced text-white text-lg"></i>
+                    </div>
+                    <span class="text-2xl font-bold text-emerald-700">HermesAI</span>
+                    <span class="ml-2 text-sm text-gray-500">LegalTech Compliance — Manual de Usuario</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="printBtn"
+                        class="accent-gradient text-white px-4 py-2 rounded-lg flex items-center text-sm font-bold">
+                        <i class="fas fa-print mr-2"></i> Imprimir PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="gradient-bg py-14">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <h1 class="text-4xl md:text-5xl font-bold text-white">Manual de Usuario</h1>
+            <p class="text-white opacity-90 mt-3 text-lg">LegalTech Compliance — Gestión Jurídica Inteligente con IA
+            </p>
+            <div class="mt-6 flex justify-center gap-4 flex-wrap">
+                <div class="bg-white bg-opacity-20 rounded-full px-6 py-2 inline-flex items-center">
+                    <i class="fas fa-clock text-white mr-2"></i>
+                    <span class="text-white text-sm">Lectura: 25-30 minutos</span>
+                </div>
+                <div class="bg-white bg-opacity-20 rounded-full px-6 py-2 inline-flex items-center">
+                    <i class="fas fa-code-branch text-white mr-2"></i>
+                    <span class="text-white text-sm">Versión 2.0 — Abril 2026</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="max-w-7xl mx-auto px-4 py-8 grid md:grid-cols-4 gap-8">
+
+        <!-- Sidebar TOC -->
+        <aside class="md:col-span-1 no-print">
+            <div class="bg-white rounded-xl shadow p-4 sticky sticky-toc">
+                <div class="relative mb-3">
+                    <input id="search" type="text" placeholder="Buscar en el manual"
+                        class="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm">
+                    <i class="fas fa-magnifying-glass text-gray-400 absolute right-3 top-3"></i>
+                </div>
+                <nav id="toc" class="space-y-1.5 text-sm">
+                    <a href="#introduccion"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-book-open text-emerald-600 mr-3 w-5 text-center"></i> Introducción
+                    </a>
+                    <a href="#acceso"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-key text-emerald-600 mr-3 w-5 text-center"></i> Acceso y Roles
+                    </a>
+                    <a href="#dashboard"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-tachometer-alt text-emerald-600 mr-3 w-5 text-center"></i> Dashboard
+                    </a>
+                    <a href="#documentos"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-file-alt text-emerald-600 mr-3 w-5 text-center"></i> Documentos Legales
+                    </a>
+                    <a href="#contratos"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-file-signature text-emerald-600 mr-3 w-5 text-center"></i> Contratos y Firma
+                    </a>
+                    <a href="#compliance"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-shield-alt text-emerald-600 mr-3 w-5 text-center"></i> Compliance
+                    </a>
+                    <a href="#expedientes"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-gavel text-emerald-600 mr-3 w-5 text-center"></i> Expedientes Judiciales
+                    </a>
+                    <a href="#honorarios"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-money-bill text-emerald-600 mr-3 w-5 text-center"></i> Honorarios y Facturación
+                    </a>
+                    <a href="#calendario"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-calendar text-emerald-600 mr-3 w-5 text-center"></i> Calendario Judicial
+                    </a>
+                    <a href="#riesgos"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-exclamation-triangle text-emerald-600 mr-3 w-5 text-center"></i> Matriz de
+                        Riesgos
+                    </a>
+                    <a href="#flujos"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-project-diagram text-emerald-600 mr-3 w-5 text-center"></i> Flujos BPM
+                    </a>
+                    <a href="#ia"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-robot text-emerald-600 mr-3 w-5 text-center"></i> Inteligencia Artificial
+                    </a>
+                    <a href="#auditoria"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-fingerprint text-emerald-600 mr-3 w-5 text-center"></i> Auditoría Forense
+                    </a>
+                    <a href="#parametros"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-sliders-h text-emerald-600 mr-3 w-5 text-center"></i> Parámetros del Sistema
+                    </a>
+                    <a href="#reportes"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-file-pdf text-emerald-600 mr-3 w-5 text-center"></i> Reportes y PDF
+                    </a>
+                    <a href="#faq"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-question-circle text-emerald-600 mr-3 w-5 text-center"></i> Preguntas
+                        Frecuentes
+                    </a>
+                    <a href="#glosario"
+                        class="flex items-center px-3 py-2 rounded hover:bg-emerald-50 transition text-gray-700">
+                        <i class="fas fa-book text-emerald-600 mr-3 w-5 text-center"></i> Glosario
+                    </a>
+                </nav>
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <p class="text-xs text-gray-500 mb-2">¿Necesitas ayuda?</p>
+                    <a href="https://wa.me/584126011968"
+                        class="flex items-center text-sm text-emerald-600 hover:text-emerald-800 transition">
+                        <i class="fab fa-whatsapp mr-2"></i> Contactar soporte
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content -->
+        <section class="md:col-span-3 space-y-8">
+
+            <!-- 1. INTRODUCCIÓN -->
+            <div id="introduccion" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-book-open text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">1. Introducción</h2>
+                </div>
+                <p class="text-gray-700 leading-relaxed">
+                    <strong>HermesAI LegalTech Compliance</strong> es una plataforma integral de gestión jurídica con
+                    inteligencia artificial, diseñada para despachos de abogados y departamentos legales en
+                    Latinoamérica, con especialización en la normativa venezolana.
+                </p>
+
+                <div class="grid md:grid-cols-3 gap-4 mt-6">
+                    <div class="bg-emerald-50 rounded-lg p-4 text-center">
+                        <i class="fas fa-file-signature text-emerald-600 text-2xl mb-2"></i>
+                        <p class="font-bold text-gray-800 text-sm">Gestión Documental</p>
+                        <p class="text-xs text-gray-500">Contratos, documentos y firma electrónica SHA-256</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-lg p-4 text-center">
+                        <i class="fas fa-shield-alt text-blue-600 text-2xl mb-2"></i>
+                        <p class="font-bold text-gray-800 text-sm">Compliance Regulatorio</p>
+                        <p class="text-xs text-gray-500">LOTTT, SENIAT, SUNDEA, LOPCYMAT</p>
+                    </div>
+                    <div class="bg-violet-50 rounded-lg p-4 text-center">
+                        <i class="fas fa-brain text-violet-600 text-2xl mb-2"></i>
+                        <p class="font-bold text-gray-800 text-sm">IA Integrada</p>
+                        <p class="text-xs text-gray-500">Análisis de riesgo, predicciones, asistente legal</p>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-4 mt-4">
+                    <div class="bg-amber-50 rounded-lg p-4 text-center">
+                        <i class="fas fa-gavel text-amber-600 text-2xl mb-2"></i>
+                        <p class="font-bold text-gray-800 text-sm">Expedientes Judiciales</p>
+                        <p class="text-xs text-gray-500">Casos, actuaciones, audiencias y lapsos</p>
+                    </div>
+                    <div class="bg-rose-50 rounded-lg p-4 text-center">
+                        <i class="fas fa-money-bill-wave text-rose-600 text-2xl mb-2"></i>
+                        <p class="font-bold text-gray-800 text-sm">Honorarios y Facturación</p>
+                        <p class="text-xs text-gray-500">Multi-moneda (USD/EUR/VES) con ISLR</p>
+                    </div>
+                    <div class="bg-cyan-50 rounded-lg p-4 text-center">
+                        <i class="fas fa-fingerprint text-cyan-600 text-2xl mb-2"></i>
+                        <p class="font-bold text-gray-800 text-sm">Auditoría Forense</p>
+                        <p class="text-xs text-gray-500">Cadena SHA-256 inmutable e irrevocable</p>
+                    </div>
+                </div>
+
+                <div class="mt-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p class="text-sm text-emerald-800"><i class="fas fa-globe mr-2"></i><strong>Multi-jurisdicción:
+                        </strong> El sistema soporta jurisdicciones de Venezuela, España, Caribe (Curazao, Aruba) y
+                        configuraciones globales. Los parámetros, lapsos procesales y feriados se adaptan según la
+                        jurisdicción seleccionada.</p>
+                </div>
+            </div>
+
+            <!-- 2. ACCESO Y ROLES -->
+            <div id="acceso" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-key text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">2. Acceso al Sistema</h2>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mt-4 mb-3">2.1 Inicio de Sesión</h3>
+                <ol class="list-decimal ml-5 space-y-2 text-gray-700 text-sm mb-6">
+                    <li>Acceda a la URL del sistema proporcionada por su organización.</li>
+                    <li>Ingrese su <strong>correo electrónico</strong> y <strong>contraseña</strong>.</li>
+                    <li>Haga clic en <strong>"Iniciar Sesión"</strong>.</li>
+                    <li>El sistema verificará su organización y le redirigirá a su Dashboard.</li>
+                </ol>
+
+                <h3 class="text-lg font-bold text-gray-800 mt-6 mb-3">2.2 Roles del Sistema</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-emerald-50">
+                                <th class="p-3 text-left font-bold text-emerald-800 border-b border-emerald-200">Rol
+                                </th>
+                                <th class="p-3 text-left font-bold text-emerald-800 border-b border-emerald-200">
+                                    Alcance</th>
+                                <th class="p-3 text-left font-bold text-emerald-800 border-b border-emerald-200">
+                                    Funciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr>
+                                <td class="p-3"><span
+                                        class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">Consultor
+                                        General</span></td>
+                                <td class="p-3 text-gray-600">Acceso total</td>
+                                <td class="p-3 text-gray-600">Administración completa, firma de contratos, compliance,
+                                    auditoría, parámetros, usuarios</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3"><span
+                                        class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">Abogado
+                                        Senior</span></td>
+                                <td class="p-3 text-gray-600">Operaciones avanzadas</td>
+                                <td class="p-3 text-gray-600">Gestión de expedientes, contratos, compliance, análisis
+                                    IA, reportes</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3"><span
+                                        class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">Abogado
+                                        Junior</span></td>
+                                <td class="p-3 text-gray-600">Operaciones básicas</td>
+                                <td class="p-3 text-gray-600">Crear documentos, registrar actuaciones, time entries,
+                                    consultar expedientes</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3"><span
+                                        class="bg-violet-100 text-violet-700 px-2 py-1 rounded text-xs font-bold">Asistente
+                                        Legal</span></td>
+                                <td class="p-3 text-gray-600">Soporte operativo</td>
+                                <td class="p-3 text-gray-600">Carga documental, gestión calendario, asistente IA,
+                                    registro de gastos</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3"><span
+                                        class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-bold">Aprendiz</span>
+                                </td>
+                                <td class="p-3 text-gray-600">Solo lectura</td>
+                                <td class="p-3 text-gray-600">Consulta de expedientes, documentos y calendario. Sin
+                                    edición ni firma</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. DASHBOARD -->
+            <div id="dashboard" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-tachometer-alt text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">3. Dashboard Principal</h2>
+                </div>
+                <p class="text-gray-700 mb-4 text-sm">El Dashboard muestra un resumen ejecutivo del estado de la
+                    organización legal, incluyendo el índice de salud legal (LHI).</p>
+
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="font-bold text-gray-800 flex items-center mb-2"><i
+                                class="fas fa-heartbeat text-emerald-600 mr-2"></i> Índice de Salud Legal (LHI)</p>
+                        <p class="text-gray-600 text-sm">Algoritmo que combina: cumplimiento compliance, riesgo
+                            contractual, estado de expedientes y alertas activas. Escala 0-100.</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="font-bold text-gray-800 flex items-center mb-2"><i
+                                class="fas fa-chart-pie text-emerald-600 mr-2"></i> Distribución por Estado</p>
+                        <p class="text-gray-600 text-sm">Gráficas de documentos, contratos y expedientes por estado,
+                            nivel de riesgo y tipo de proceso.</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="font-bold text-gray-800 flex items-center mb-2"><i
+                                class="fas fa-bell text-emerald-600 mr-2"></i> Alertas Activas</p>
+                        <p class="text-gray-600 text-sm">Compliance por vencer, audiencias próximas, lapsos procesales
+                            críticos y contratos pendientes de firma.</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="font-bold text-gray-800 flex items-center mb-2"><i
+                                class="fas fa-robot text-emerald-600 mr-2"></i> Sugerencias IA</p>
+                        <p class="text-gray-600 text-sm">Recomendaciones automáticas basadas en análisis de riesgo y
+                            patrones detectados en la operación.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. DOCUMENTOS LEGALES -->
+            <div id="documentos" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-file-alt text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">4. Documentos Legales</h2>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">4.1 Gestión Documental</h3>
+                <p class="text-gray-700 text-sm mb-3">Cree, clasifique y gestione documentos legales con flujo de
+                    aprobación integrado.</p>
+
+                <div class="grid md:grid-cols-3 gap-3 text-sm mb-4">
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">📄 Tipos</p>
+                        <p class="text-xs text-gray-500">Demanda, Poder, Opinión Legal, Memo, Resolución, Amparo,
+                            Escritura, Informe</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">🔄 Estados</p>
+                        <p class="text-xs text-gray-500">Borrador → En Revisión → Aprobado → Vigente → Archivado</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">🎯 Riesgo</p>
+                        <p class="text-xs text-gray-500">Bajo, Medio, Alto, Crítico</p>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">4.2 Análisis con IA</h3>
+                <p class="text-gray-700 text-sm mb-3">Cada documento puede ser analizado por IA (GPT-4o) para
+                    obtener:</p>
+                <ul class="list-disc ml-5 space-y-1 text-sm text-gray-600">
+                    <li><strong>Resumen ejecutivo</strong> del contenido legal</li>
+                    <li><strong>Riesgos identificados</strong> con nivel de severidad</li>
+                    <li><strong>Sugerencias de mejora</strong> con referencia a legislación aplicable</li>
+                    <li><strong>Nivel de confianza</strong> del análisis (0-100%)</li>
+                </ul>
+
+                <h3 class="text-lg font-bold text-gray-800 mt-4 mb-3">4.3 Flujo de Aprobación</h3>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center justify-between flex-wrap gap-4">
+                        <div class="text-center">
+                            <div
+                                class="w-12 h-12 rounded-full bg-gray-300 text-white flex items-center justify-center mx-auto mb-2">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                            <p class="text-xs font-bold text-gray-600">Borrador</p>
+                        </div>
+                        <i class="fas fa-arrow-right text-gray-300"></i>
+                        <div class="text-center">
+                            <div
+                                class="w-12 h-12 rounded-full bg-amber-400 text-white flex items-center justify-center mx-auto mb-2">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <p class="text-xs font-bold text-amber-600">Revisión</p>
+                        </div>
+                        <i class="fas fa-arrow-right text-gray-300"></i>
+                        <div class="text-center">
+                            <div
+                                class="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto mb-2">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <p class="text-xs font-bold text-emerald-600">Aprobado</p>
+                        </div>
+                        <i class="fas fa-arrow-right text-gray-300"></i>
+                        <div class="text-center">
+                            <div
+                                class="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center mx-auto mb-2">
+                                <i class="fas fa-stamp"></i>
+                            </div>
+                            <p class="text-xs font-bold text-blue-600">Vigente</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. CONTRATOS Y FIRMA ELECTRÓNICA -->
+            <div id="contratos" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-file-signature text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">5. Contratos y Firma Electrónica</h2>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">5.1 Gestión de Contratos</h3>
+                <p class="text-gray-700 text-sm mb-3">Ciclo de vida completo de contratos con soporte multi-parte y
+                    valuación en múltiples monedas (USD, EUR, VES).</p>
+
+                <div class="grid md:grid-cols-2 gap-3 mb-6">
+                    <div class="bg-gray-50 rounded-lg p-3 text-sm">
+                        <p class="font-bold text-gray-800"><i class="fas fa-list text-emerald-600 mr-2"></i>Tipos</p>
+                        <p class="text-gray-600 text-xs">Servicio, Laboral, Arrendamiento, Compraventa, NDA,
+                            Asociación, Consultoría, Poder</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-sm">
+                        <p class="font-bold text-gray-800"><i class="fas fa-sync text-emerald-600 mr-2"></i>Flujo</p>
+                        <p class="text-gray-600 text-xs">Borrador → En Revisión → Pendiente Firma → Firmado → Vigente →
+                            Vencido / Renovado</p>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">5.2 Firma Electrónica (SHA-256)</h3>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
+                    <p class="text-sm text-emerald-800"><i class="fas fa-lock mr-2"></i>La firma electrónica cumple con
+                        la <strong>Ley de Datos y Firmas Electrónicas de Venezuela (LDFE)</strong>. Cada firma genera un
+                        hash SHA-256 único e irrevocable sobre el contenido canónico del contrato.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex items-start gap-3">
+                        <div
+                            class="step-dot rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">
+                            1</div>
+                        <div>
+                            <p class="font-semibold text-gray-800">Prepare el contrato</p>
+                            <p class="text-gray-600 text-sm">Complete todos los campos: partes, tipo, valor, moneda,
+                                contenido y abogado asignado.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div
+                            class="step-dot rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">
+                            2</div>
+                        <div>
+                            <p class="font-semibold text-gray-800">Solicite la firma</p>
+                            <p class="text-gray-600 text-sm">Haga clic en "Firmar Contrato". Ingrese nombre completo y
+                                email del firmante.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div
+                            class="step-dot rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">
+                            3</div>
+                        <div>
+                            <p class="font-semibold text-gray-800">Evidencia biométrica (opcional)</p>
+                            <p class="text-gray-600 text-sm">Capture una foto del firmante como evidencia adicional.
+                                Se almacena cifrada en los metadatos del contrato.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div
+                            class="step-dot rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">
+                            4</div>
+                        <div>
+                            <p class="font-semibold text-gray-800">Generación del hash</p>
+                            <p class="text-gray-600 text-sm">El sistema genera un hash SHA-256 sobre el contenido
+                                canónico. Se crea un token de verificación único (formato
+                                <code>LDV-xxxxx-xxxx</code>).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mt-6 mb-3">5.3 Firma Externa</h3>
+                <p class="text-gray-700 text-sm">Envíe un enlace de firma a terceros que no tienen cuenta en el
+                    sistema. El enlace contiene un token seguro que permite firmar sin iniciar sesión.</p>
+
+                <h3 class="text-lg font-bold text-gray-800 mt-4 mb-3">5.4 Verificación de Firma</h3>
+                <p class="text-gray-700 text-sm">Cualquier persona puede verificar la autenticidad de un contrato
+                    firmado recalculando el hash y comparándolo con el almacenado. El sistema muestra ✅ si el hash
+                    coincide o ❌ si fue alterado.</p>
+            </div>
+
+            <!-- 6. COMPLIANCE -->
+            <div id="compliance" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-shield-alt text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">6. Compliance Regulatorio</h2>
+                </div>
+                <p class="text-gray-700 mb-4 text-sm">Monitoree el cumplimiento de la organización con la normativa
+                    aplicable. El sistema gestiona 6 áreas de riesgo regulatorio.</p>
+
+                <div class="grid md:grid-cols-3 gap-3 mb-4">
+                    <div class="bg-blue-50 rounded-lg p-3 text-center">
+                        <i class="fas fa-gavel text-blue-600 text-xl mb-1"></i>
+                        <p class="font-bold text-sm text-gray-800">Legal</p>
+                        <p class="text-xs text-gray-500">Código Civil, LDFE, mercantil</p>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-3 text-center">
+                        <i class="fas fa-receipt text-green-600 text-xl mb-1"></i>
+                        <p class="font-bold text-sm text-gray-800">Tributario</p>
+                        <p class="text-xs text-gray-500">SENIAT, ISLR, IVA, retenciones</p>
+                    </div>
+                    <div class="bg-amber-50 rounded-lg p-3 text-center">
+                        <i class="fas fa-hard-hat text-amber-600 text-xl mb-1"></i>
+                        <p class="font-bold text-sm text-gray-800">Laboral</p>
+                        <p class="text-xs text-gray-500">LOTTT, LOPCYMAT, prestaciones</p>
+                    </div>
+                    <div class="bg-rose-50 rounded-lg p-3 text-center">
+                        <i class="fas fa-landmark text-rose-600 text-xl mb-1"></i>
+                        <p class="font-bold text-sm text-gray-800">Regulatorio</p>
+                        <p class="text-xs text-gray-500">SUNDEA, SUDEBAN, CNV</p>
+                    </div>
+                    <div class="bg-cyan-50 rounded-lg p-3 text-center">
+                        <i class="fas fa-leaf text-cyan-600 text-xl mb-1"></i>
+                        <p class="font-bold text-sm text-gray-800">Ambiental</p>
+                        <p class="text-xs text-gray-500">MinAmb, estudios de impacto</p>
+                    </div>
+                    <div class="bg-violet-50 rounded-lg p-3 text-center">
+                        <i class="fas fa-cogs text-violet-600 text-xl mb-1"></i>
+                        <p class="font-bold text-sm text-gray-800">Operacional</p>
+                        <p class="text-xs text-gray-500">Procesos internos, ISO</p>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">Estados de Cumplimiento</h3>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">✅ Cumple</span>
+                    <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">❌ No Cumple</span>
+                    <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">⚠️ Parcial</span>
+                    <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">⏳ Pendiente</span>
+                    <span class="bg-red-200 text-red-800 px-3 py-1 rounded-full text-xs font-bold">🕐 Expirado</span>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p class="text-sm text-amber-800"><i class="fas fa-bell mr-2"></i><strong>Alertas
+                            automáticas:</strong> El sistema genera alertas 3 días antes del vencimiento de cada
+                        revisión de compliance. Las alertas se muestran en el dashboard y pueden enviarse por email.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 7. EXPEDIENTES JUDICIALES -->
+            <div id="expedientes" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-gavel text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">7. Expedientes Judiciales</h2>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">7.1 Creación de Expedientes</h3>
+                <p class="text-gray-700 text-sm mb-3">Registre casos judiciales con toda la información procesal:</p>
+                <div class="grid md:grid-cols-2 gap-3 text-sm mb-4">
+                    <ul class="list-disc ml-5 space-y-1 text-gray-600">
+                        <li>Número de expediente y tribunal</li>
+                        <li>Tipo de proceso (Civil, Laboral, Mercantil, Penal, Administrativo, Constitucional,
+                            Arbitraje)</li>
+                        <li>Partes (actora, demandada, nuestra posición)</li>
+                    </ul>
+                    <ul class="list-disc ml-5 space-y-1 text-gray-600">
+                        <li>Cuantía y moneda</li>
+                        <li>Nivel de riesgo</li>
+                        <li>Jurisdicción y región</li>
+                        <li>Abogado responsable asignado</li>
+                    </ul>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">7.2 Actuaciones Procesales</h3>
+                <p class="text-gray-700 text-sm mb-3">Registre cada evento del expediente en una línea de tiempo:</p>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Demanda</span>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Contestación</span>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Audiencia</span>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Sentencia</span>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Apelación</span>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Ejecución</span>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Notificación</span>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Diligencia</span>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Otro</span>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">7.3 Audiencias</h3>
+                <p class="text-gray-700 text-sm mb-3">Programe audiencias con alertas configurables (días de
+                    anticipación). Incluye tribunal, sala, tipo de audiencia y estado.</p>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">7.4 Lapsos Procesales</h3>
+                <p class="text-gray-700 text-sm mb-3">El sistema calcula automáticamente los plazos procesales en
+                    <strong>días hábiles</strong>, excluyendo feriados judiciales de la jurisdicción configurada.
+                </p>
+
+                <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p class="text-sm text-emerald-800"><i class="fas fa-brain mr-2"></i><strong>Predicción IA:
+                        </strong> La IA puede analizar el expediente y predecir la probabilidad de éxito del caso,
+                        identificar riesgos procesales y sugerir estrategias legales.</p>
+                </div>
+            </div>
+
+            <!-- 8. HONORARIOS Y FACTURACIÓN -->
+            <div id="honorarios" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-money-bill text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">8. Honorarios y Facturación</h2>
+                </div>
+                <p class="text-gray-700 mb-4 text-sm">Sistema completo de facturación legal multi-moneda con soporte
+                    para retención de ISLR y tipos de cambio BCV.</p>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">Flujo de Facturación</h3>
+                <div class="bg-gray-50 rounded-lg p-6 mb-4">
+                    <div class="grid grid-cols-3 md:grid-cols-6 gap-2 text-center text-xs">
+                        <div>
+                            <div
+                                class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto mb-1">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <p class="font-bold">Clientes</p>
+                        </div>
+                        <div>
+                            <div
+                                class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center mx-auto mb-1">
+                                <i class="fas fa-briefcase"></i>
+                            </div>
+                            <p class="font-bold">Asuntos</p>
+                        </div>
+                        <div>
+                            <div
+                                class="w-10 h-10 rounded-full bg-violet-500 text-white flex items-center justify-center mx-auto mb-1">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <p class="font-bold">Horas</p>
+                        </div>
+                        <div>
+                            <div
+                                class="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center mx-auto mb-1">
+                                <i class="fas fa-receipt"></i>
+                            </div>
+                            <p class="font-bold">Gastos</p>
+                        </div>
+                        <div>
+                            <div
+                                class="w-10 h-10 rounded-full bg-rose-500 text-white flex items-center justify-center mx-auto mb-1">
+                                <i class="fas fa-file-invoice"></i>
+                            </div>
+                            <p class="font-bold">Facturas</p>
+                        </div>
+                        <div>
+                            <div
+                                class="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center mx-auto mb-1">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                            <p class="font-bold">Cobros</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">Tipos de Honorarios</h3>
+                <div class="grid md:grid-cols-2 gap-3 text-sm mb-4">
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="font-bold text-gray-800">⏱️ Por hora</p>
+                        <p class="text-gray-500 text-xs">Tarifa horaria × horas registradas</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="font-bold text-gray-800">💰 Fijo</p>
+                        <p class="text-gray-500 text-xs">Monto acordado por caso/servicio completo</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="font-bold text-gray-800">📊 Contingencia</p>
+                        <p class="text-gray-500 text-xs">Porcentaje sobre resultado favorable</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="font-bold text-gray-800">📅 Retainer</p>
+                        <p class="text-gray-500 text-xs">Iguala mensual por servicios continuos</p>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-3">Multi-Moneda</h3>
+                <p class="text-gray-700 text-sm">Todos los montos se registran en su moneda original (USD, EUR, VES)
+                    <strong>y simultáneamente en USD</strong> como moneda de consolidación. El sistema obtiene la
+                    tasa BCV para conversión VES↔USD.
+                </p>
+
+                <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p class="text-sm text-amber-800"><i class="fas fa-calculator mr-2"></i><strong>ISLR:</strong> Las
+                        facturas calculan automáticamente la retención de Impuesto Sobre La Renta según la legislación
+                        venezolana vigente.</p>
+                </div>
+            </div>
+
+            <!-- 9. CALENDARIO JUDICIAL -->
+            <div id="calendario" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-calendar text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">9. Calendario Judicial</h2>
+                </div>
+                <p class="text-gray-700 mb-4 text-sm">Calendario integrado que combina audiencias, vencimientos de
+                    lapsos, feriados judiciales y eventos personalizados.</p>
+
+                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="font-bold text-gray-800 mb-2">Fuentes de Eventos</p>
+                        <ul class="list-disc ml-5 space-y-1 text-gray-600">
+                            <li><strong>Audiencias:</strong> Programadas desde expedientes</li>
+                            <li><strong>Lapsos:</strong> Vencimientos calculados automáticamente</li>
+                            <li><strong>Feriados:</strong> Base de datos de feriados judiciales</li>
+                            <li><strong>Personalizados:</strong> Eventos creados manualmente</li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="font-bold text-gray-800 mb-2">Niveles de Alerta</p>
+                        <div class="space-y-1">
+                            <p class="text-gray-600"><span
+                                    class="inline-block w-3 h-3 rounded-full bg-green-500 mr-2"></span>OK — En tiempo
+                            </p>
+                            <p class="text-gray-600"><span
+                                    class="inline-block w-3 h-3 rounded-full bg-blue-500 mr-2"></span>Info —
+                                Informativo</p>
+                            <p class="text-gray-600"><span
+                                    class="inline-block w-3 h-3 rounded-full bg-amber-500 mr-2"></span>Warning — Próximo
+                                a vencer</p>
+                            <p class="text-gray-600"><span
+                                    class="inline-block w-3 h-3 rounded-full bg-red-500 mr-2"></span>Crítico — Vence hoy
+                            </p>
+                            <p class="text-gray-600"><span
+                                    class="inline-block w-3 h-3 rounded-full bg-gray-500 mr-2"></span>Expirado — Venció
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 10. MATRIZ DE RIESGOS -->
+            <div id="riesgos" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-exclamation-triangle text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">10. Matriz de Riesgos</h2>
+                </div>
+                <p class="text-gray-700 mb-4 text-sm">Evalúe riesgos legales siguiendo metodologías NIST e ISO 31000.
+                    La matriz combina probabilidad e impacto para clasificar riesgos.</p>
+                <div class="bg-gray-50 rounded-lg p-4 text-sm">
+                    <p class="text-gray-600 mb-2">Matriz 5×5 de probabilidad vs. impacto con categorías:</p>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="bg-green-100 text-green-700 px-3 py-1 rounded text-xs font-bold">Bajo</span>
+                        <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded text-xs font-bold">Medio</span>
+                        <span class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-xs font-bold">Alto</span>
+                        <span class="bg-red-100 text-red-700 px-3 py-1 rounded text-xs font-bold">Crítico</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 11. FLUJOS BPM -->
+            <div id="flujos" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-project-diagram text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">11. Flujos de Proceso (BPM)</h2>
+                </div>
+                <p class="text-gray-700 mb-4 text-sm">Automatice procesos jurídicos con plantillas de flujo que definen
+                    etapas, plazos y responsables.</p>
+
+                <ul class="list-disc ml-5 space-y-1 text-sm text-gray-600 mb-4">
+                    <li><strong>Plantillas:</strong> Defina flujos reutilizables por tipo de proceso y jurisdicción</li>
+                    <li><strong>Etapas:</strong> Cada plantilla tiene etapas ordenadas con días límite y alertas</li>
+                    <li><strong>Instancias:</strong> Active un flujo sobre un expediente específico</li>
+                    <li><strong>Tareas:</strong> Cada etapa genera tareas asignables con fecha de vencimiento</li>
+                    <li><strong>Auto-avance:</strong> Las etapas pueden avanzar automáticamente al completar tareas</li>
+                </ul>
+
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center justify-between flex-wrap gap-3 text-center text-xs">
+                        <div class="bg-emerald-100 rounded-lg px-4 py-3">
+                            <i class="fas fa-play text-emerald-600"></i>
+                            <p class="font-bold mt-1">Activo</p>
+                        </div>
+                        <i class="fas fa-arrow-right text-gray-300"></i>
+                        <div class="bg-amber-100 rounded-lg px-4 py-3">
+                            <i class="fas fa-pause text-amber-600"></i>
+                            <p class="font-bold mt-1">Pausado</p>
+                        </div>
+                        <i class="fas fa-arrow-right text-gray-300"></i>
+                        <div class="bg-blue-100 rounded-lg px-4 py-3">
+                            <i class="fas fa-check text-blue-600"></i>
+                            <p class="font-bold mt-1">Completado</p>
+                        </div>
+                        <div class="bg-red-100 rounded-lg px-4 py-3">
+                            <i class="fas fa-times text-red-600"></i>
+                            <p class="font-bold mt-1">Cancelado</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 12. INTELIGENCIA ARTIFICIAL -->
+            <div id="ia" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-robot text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">12. Inteligencia Artificial</h2>
+                </div>
+                <p class="text-gray-700 mb-4 text-sm">El sistema integra GPT-4o de OpenAI para múltiples capacidades de
+                    IA legal.</p>
+
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-violet-50 rounded-lg p-4">
+                        <p class="font-bold text-violet-800 mb-2"><i class="fas fa-search mr-2"></i>Análisis
+                            Documental</p>
+                        <p class="text-violet-700 text-sm">Análisis automático de documentos: resumen, riesgos,
+                            sugerencias y referencias legales.</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <p class="font-bold text-blue-800 mb-2"><i class="fas fa-comments mr-2"></i>Asistente Legal</p>
+                        <p class="text-blue-700 text-sm">Chat conversacional con contexto del expediente o documento.
+                            Responde preguntas jurídicas.</p>
+                    </div>
+                    <div class="bg-amber-50 rounded-lg p-4">
+                        <p class="font-bold text-amber-800 mb-2"><i class="fas fa-shield-alt mr-2"></i>Análisis de
+                            Compliance</p>
+                        <p class="text-amber-700 text-sm">Evalúa riesgos regulatorios y sugiere acciones correctivas
+                            basadas en la normativa vigente.</p>
+                    </div>
+                    <div class="bg-emerald-50 rounded-lg p-4">
+                        <p class="font-bold text-emerald-800 mb-2"><i class="fas fa-chart-line mr-2"></i>Predicción
+                            Judicial</p>
+                        <p class="text-emerald-700 text-sm">Predice probabilidad de éxito en expedientes judiciales
+                            analizando factores procesales.</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p class="text-sm text-emerald-800"><i class="fas fa-database mr-2"></i><strong>Base de
+                            conocimiento (RAG):</strong> La IA tiene acceso a una base vectorial con legislación
+                        venezolana: LDFE, LOPCYMAT, Código Civil, jurisprudencia del TSJ y más. Las respuestas se
+                        fundamentan en fuentes legales verificables.</p>
+                </div>
+            </div>
+
+            <!-- 13. AUDITORÍA FORENSE -->
+            <div id="auditoria" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-fingerprint text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">13. Auditoría Forense</h2>
+                </div>
+                <p class="text-gray-700 mb-4 text-sm">Cada acción en el sistema queda registrada en una
+                    <strong>cadena inmutable</strong> con hash SHA-256 encadenado, similar a una blockchain.
+                </p>
+
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <p class="font-bold text-gray-800 text-sm mb-2">Cadena de Integridad:</p>
+                    <pre style="background:#1e1b4b;color:#a5b4fc;border-radius:0.75rem;padding:1rem;font-size:0.75rem">Registro N-1: checksum = SHA-256(datos + previous_hash)
+                              ↓
+Registro N:   checksum = SHA-256(datos + checksum_N-1)
+                              ↓
+Registro N+1: checksum = SHA-256(datos + checksum_N)</pre>
+                </div>
+
+                <ul class="list-disc ml-5 space-y-1 text-sm text-gray-600">
+                    <li><strong>Inmutable:</strong> Los registros de auditoría nunca se modifican ni eliminan</li>
+                    <li><strong>Verificable:</strong> La cadena completa puede verificarse recalculando hashes</li>
+                    <li><strong>Detallado:</strong> Registra acción, entidad, datos anteriores/nuevos, usuario,
+                        timestamp</li>
+                    <li><strong>Filtrable:</strong> Por tipo de entidad (documento, contrato, usuario, expediente,
+                        compliance)</li>
+                </ul>
+            </div>
+
+            <!-- 14. PARÁMETROS -->
+            <div id="parametros" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-sliders-h text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">14. Parámetros del Sistema</h2>
+                </div>
+                <p class="text-gray-700 mb-4 text-sm">42 parámetros configurables organizados en 9 categorías.
+                    Adaptables por jurisdicción.</p>
+
+                <div class="grid md:grid-cols-3 gap-2 text-sm">
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">⏱️ Lapsos</p>
+                        <p class="text-xs text-gray-500">Días procesales por tipo</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">💰 Aranceles</p>
+                        <p class="text-xs text-gray-500">Tasas judiciales y notariales</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">💱 Divisas</p>
+                        <p class="text-xs text-gray-500">Tasas de cambio BCV</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">🔔 Notificaciones</p>
+                        <p class="text-xs text-gray-500">Canales y frecuencia</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">🤖 IA Cuotas</p>
+                        <p class="text-xs text-gray-500">Límites de uso IA/mes</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">✅ Compliance</p>
+                        <p class="text-xs text-gray-500">Umbrales y frecuencias</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">⚖️ Honorarios</p>
+                        <p class="text-xs text-gray-500">Tarifas y retenciones</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">⚙️ Sistema</p>
+                        <p class="text-xs text-gray-500">Configuración general</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="font-bold text-gray-700">📅 Calendario</p>
+                        <p class="text-xs text-gray-500">Feriados y recesos</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 15. REPORTES -->
+            <div id="reportes" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-file-pdf text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">15. Reportes y Generación PDF</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="font-bold text-gray-800 mb-2"><i class="fas fa-globe text-emerald-600 mr-2"></i>
+                            Reportes HTML</p>
+                        <ul class="list-disc ml-5 space-y-1 text-gray-600">
+                            <li>Dossier Procesal (R-01)</li>
+                            <li>Reporte de Vencimientos (R-05)</li>
+                            <li>Reporte de Compliance</li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="font-bold text-gray-800 mb-2"><i class="fas fa-file-pdf text-red-600 mr-2"></i>
+                            Reportes PDF</p>
+                        <ul class="list-disc ml-5 space-y-1 text-gray-600">
+                            <li>Contrato Certificado (RPT-CONT-001)</li>
+                            <li>Trail de Auditoría (RPT-CONT-003)</li>
+                            <li>Factura con ISLR</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="mt-4 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p class="text-sm text-emerald-800"><i class="fas fa-qrcode mr-2"></i>Cada reporte incluye un
+                        <strong>código QR de verificación</strong> y un hash SHA-256 en el pie de página para garantizar
+                        la integridad del documento generado.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 16. FAQ -->
+            <div id="faq" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-question-circle text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">16. Preguntas Frecuentes</h2>
+                </div>
+                <div class="space-y-4 text-sm">
+                    <div class="border-b border-gray-100 pb-4">
+                        <p class="font-bold text-gray-800 mb-1">¿La firma electrónica tiene validez legal?</p>
+                        <p class="text-gray-600">Sí. La firma cumple con la Ley de Datos y Firmas Electrónicas de
+                            Venezuela (LDFE). El hash SHA-256 sobre el contenido canónico garantiza integridad y
+                            no-repudio.</p>
+                    </div>
+                    <div class="border-b border-gray-100 pb-4">
+                        <p class="font-bold text-gray-800 mb-1">¿Se puede revocar una firma?</p>
+                        <p class="text-gray-600">Solo el rol Consultor General puede revocar firmas. La revocación queda
+                            registrada en el audit log con todos los detalles.</p>
+                    </div>
+                    <div class="border-b border-gray-100 pb-4">
+                        <p class="font-bold text-gray-800 mb-1">¿Cómo se calculan los lapsos en días hábiles?</p>
+                        <p class="text-gray-600">El sistema consulta la tabla de feriados judiciales de la jurisdicción
+                            configurada y excluye sábados, domingos y feriados del conteo.</p>
+                    </div>
+                    <div class="border-b border-gray-100 pb-4">
+                        <p class="font-bold text-gray-800 mb-1">¿Qué pasa si se detecta manipulación en el audit log?
+                        </p>
+                        <p class="text-gray-600">El verificador de cadena (Chain Integrity Check) detectará la
+                            inconsistencia en los hashes SHA-256 y mostrará exactamente en qué registro se rompió la
+                            cadena.</p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-800 mb-1">¿La IA tiene acceso a datos externos?</p>
+                        <p class="text-gray-600">No. La IA solo accede a documentos y datos dentro de su organización
+                            (aislamiento multi-tenant). La base de conocimiento legal es compartida pero no contiene
+                            datos de clientes.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 17. GLOSARIO -->
+            <div id="glosario" class="bg-white rounded-xl shadow p-6 feature-card">
+                <div class="flex items-center mb-4">
+                    <div class="section-icon rounded-full bg-emerald-50 flex items-center justify-center mr-4">
+                        <i class="fas fa-book text-emerald-600 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">17. Glosario</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-emerald-50">
+                                <th class="p-3 text-left font-bold text-emerald-800 border-b border-emerald-200 w-1/3">
+                                    Término</th>
+                                <th class="p-3 text-left font-bold text-emerald-800 border-b border-emerald-200">
+                                    Definición</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">LDFE</td>
+                                <td class="p-3 text-gray-600">Ley de Datos y Firmas Electrónicas de Venezuela</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">LOTTT</td>
+                                <td class="p-3 text-gray-600">Ley Orgánica del Trabajo, los Trabajadores y las
+                                    Trabajadoras</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">LOPCYMAT</td>
+                                <td class="p-3 text-gray-600">Ley Orgánica de Prevención, Condiciones y Medio Ambiente
+                                    de Trabajo</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">SENIAT</td>
+                                <td class="p-3 text-gray-600">Servicio Nacional Integrado de Administración Aduanera y
+                                    Tributaria</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">SUNDEA</td>
+                                <td class="p-3 text-gray-600">Superintendencia Nacional para la Defensa de los Derechos
+                                    Socioeconómicos</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">ISLR</td>
+                                <td class="p-3 text-gray-600">Impuesto Sobre La Renta</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">BCV</td>
+                                <td class="p-3 text-gray-600">Banco Central de Venezuela — fuente oficial de tasas de
+                                    cambio</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">SHA-256</td>
+                                <td class="p-3 text-gray-600">Algoritmo de hash criptográfico usado para firma
+                                    electrónica y cadena de auditoría</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">RAG</td>
+                                <td class="p-3 text-gray-600">Retrieval-Augmented Generation — técnica de IA que
+                                    combina búsqueda vectorial con generación de texto</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">BPM</td>
+                                <td class="p-3 text-gray-600">Business Process Management — gestión de flujos de
+                                    proceso automatizados</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">RLS</td>
+                                <td class="p-3 text-gray-600">Row-Level Security — seguridad a nivel de fila en
+                                    PostgreSQL para aislamiento multi-tenant</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-gray-800">LHI</td>
+                                <td class="p-3 text-gray-600">Legal Health Index — índice de salud legal calculado por
+                                    el sistema</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="gradient-bg py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center text-white">
+            <p class="font-bold text-lg mb-2">HermesAI — LegalTech Compliance</p>
+            <p class="text-white/70 text-sm">Manual de Usuario v2.0 — Abril 2026</p>
+            <p class="text-white/50 text-xs mt-2">© 2026 HermesAI. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const h = document.documentElement;
+            const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+            document.getElementById('readingProgress').style.width = pct + '%';
+        });
+        document.getElementById('printBtn').addEventListener('click', () => window.print());
+        const tocLinks = document.querySelectorAll('#toc a');
+        const sections = document.querySelectorAll('[id]');
+        const obs = new IntersectionObserver(entries => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    tocLinks.forEach(l => l.classList.remove('bg-emerald-100', 'text-emerald-700', 'font-bold'));
+                    const link = document.querySelector(`#toc a[href="#${e.target.id}"]`);
+                    if (link) link.classList.add('bg-emerald-100', 'text-emerald-700', 'font-bold');
+                }
+            });
+        }, { rootMargin: '-20% 0px -70% 0px' });
+        sections.forEach(s => obs.observe(s));
+        document.getElementById('search').addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.feature-card').forEach(card => {
+                const match = card.textContent.toLowerCase().includes(q);
+                card.style.display = match || !q ? '' : 'none';
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -687,7 +687,7 @@ class ExchangeRateService {
     async getLatestAll(): Promise<Record<string, number>> {
         // Pares directos que existen en la BD
         const directPairs = [
-            ['USD','VES'], ['EUR','VES'], ['EUR','USD'], ['USD','COP'], ['COP','VES'],
+            ['USD','VES'], ['EUR','VES'], ['EUR','USD'], ['USD','CNY'], ['CNY','VES'],
         ];
         const results: Record<string, number> = {};
         
@@ -707,18 +707,18 @@ class ExchangeRateService {
         };
         
         // Inversos fundamentales
-        computeInverse('VES', 'USD');  // 1/USD_VES
-        computeInverse('USD', 'EUR');  // 1/EUR_USD
-        computeInverse('VES', 'EUR');  // 1/EUR_VES
-        computeInverse('COP', 'USD');  // 1/USD_COP
-        computeInverse('VES', 'COP');  // 1/COP_VES
+        computeInverse('VES', 'USD');
+        computeInverse('USD', 'EUR');
+        computeInverse('VES', 'EUR');
+        computeInverse('CNY', 'USD');
+        computeInverse('VES', 'CNY');
         
-        // Pares cruzados vía USD (si aún no existen)
-        if (!results['EUR_COP'] && results['EUR_USD'] && results['USD_COP']) {
-            results['EUR_COP'] = results['EUR_USD'] * results['USD_COP'];
+        // Pares cruzados vía USD
+        if (!results['EUR_CNY'] && results['EUR_USD'] && results['USD_CNY']) {
+            results['EUR_CNY'] = results['EUR_USD'] * results['USD_CNY'];
         }
-        if (!results['COP_EUR'] && results['EUR_COP'] && results['EUR_COP'] > 0) {
-            results['COP_EUR'] = 1 / results['EUR_COP'];
+        if (!results['CNY_EUR'] && results['EUR_CNY'] && results['EUR_CNY'] > 0) {
+            results['CNY_EUR'] = 1 / results['EUR_CNY'];
         }
         
         return results;

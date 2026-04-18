@@ -462,14 +462,14 @@ export const HonorariosView: React.FC = () => {
     const renderFmt = (valUsd: number, forceCurrency?: Currency) => {
         if (forceCurrency) {
             const sym = CURRENCY_SYMBOLS[forceCurrency] || '$';
-            const dec = forceCurrency === 'COP' ? 0 : 2;
+            const dec = forceCurrency === 'CNY' ? 2 : 2;
             return `${sym}${valUsd.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec })}`;
         }
         
         const rate = (presentationCurrency === 'USD') ? 1 : latestRates[`USD_${presentationCurrency}`] || 1;
         const finalValue = valUsd * rate;
         const sym = CURRENCY_SYMBOLS[presentationCurrency] || '$';
-        const dec = presentationCurrency === 'COP' ? 0 : 2;
+        const dec = presentationCurrency === 'CNY' ? 2 : 2;
         return `${sym}${finalValue.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec })}`;
     };
 
@@ -935,7 +935,7 @@ export const HonorariosView: React.FC = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b' }}>MOSTRAR TODO EN:</span>
                         <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '12px', gap: '4px' }}>
-                            {(['USD', 'EUR', 'VES', 'COP'] as Currency[]).map(cur => (
+                            {(['USD', 'EUR', 'VES', 'CNY'] as Currency[]).map(cur => (
                                 <button
                                     key={cur}
                                     onClick={() => setPresentationCurrency(cur)}
@@ -1344,7 +1344,7 @@ export const HonorariosView: React.FC = () => {
                                             <option value="USD">🇺🇸 USD — Dólar</option>
                                             <option value="EUR">🇪🇺 EUR — Euro</option>
                                             <option value="VES">🇻🇪 Bs. — Bolívar</option>
-                                            <option value="COP">🇨🇴 COP — Peso Col.</option>
+                                            <option value="CNY">🇨🇳 CNY — Yuan Chino</option>
                                         </select>
                                     </div>
                                 </div>
@@ -1830,7 +1830,7 @@ export const HonorariosView: React.FC = () => {
                                         <option value="USD">🇺🇸 USD — Dólar</option>
                                         <option value="EUR">🇪🇺 EUR — Euro</option>
                                         <option value="VES">🇻🇪 Bs. — Bolívar</option>
-                                        <option value="COP">🇨🇴 COP — Peso Col.</option>
+                                        <option value="CNY">🇨🇳 CNY — Yuan Chino</option>
                                     </select>
                                 </div>
                                 {invoiceData.currency !== 'USD' && (
@@ -2229,7 +2229,7 @@ export const HonorariosView: React.FC = () => {
                                     <option value="USD">🇺🇸 USD</option>
                                     <option value="EUR">🇪🇺 EUR</option>
                                     <option value="VES">🇻🇪 VES</option>
-                                    <option value="COP">🇨🇴 COP</option>
+                                    <option value="CNY">🇨🇳 CNY</option>
                                 </select>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 900, fontSize: '1.5rem' }}>⇉</div>
                                 <select value={convertTo} onChange={e => setConvertTo(e.target.value as any)}
@@ -2237,7 +2237,7 @@ export const HonorariosView: React.FC = () => {
                                     <option value="VES">🇻🇪 VES</option>
                                     <option value="USD">🇺🇸 USD</option>
                                     <option value="EUR">🇪🇺 EUR</option>
-                                    <option value="COP">🇨🇴 COP</option>
+                                    <option value="CNY">🇨🇳 CNY</option>
                                 </select>
                                 <div style={{ background: 'white', borderRadius: '16px', padding: '1rem', textAlign: 'center', minWidth: '140px' }}>
                                     {(() => {
@@ -2255,8 +2255,8 @@ export const HonorariosView: React.FC = () => {
                                 {[
                                     { label: 'DÓLAR (BCV)', sub: 'USD → VES', key: 'USD_VES', color: '#10b981', sym: 'Bs.' },
                                     { label: 'EURO (BCE)', sub: 'EUR → VES', key: 'EUR_VES', color: '#3b82f6', sym: 'Bs.' },
-                                    { label: 'PESO COL.', sub: 'USD → COP', key: 'USD_COP', color: '#f59e0b', sym: '$', dec: 0 },
-                                    { label: 'COP → VES', sub: 'COP → VES', key: 'COP_VES', color: '#8b5cf6', sym: 'Bs.', dec: 4 },
+                                    { label: 'YUAN (CNY)', sub: 'USD → CNY', key: 'USD_CNY', color: '#f59e0b', sym: '¥', dec: 2 },
+                                    { label: 'CNY → VES', sub: 'CNY → VES', key: 'CNY_VES', color: '#8b5cf6', sym: 'Bs.', dec: 2 },
                                 ].map((t, i) => (
                                     <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                         <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', fontWeight: 800, textTransform: 'uppercase' }}>{t.label}</span>
@@ -2306,7 +2306,7 @@ export const HonorariosView: React.FC = () => {
                                                 <option value="USD">USD</option>
                                                 <option value="EUR">EUR</option>
                                                 <option value="VES">VES</option>
-                                                <option value="COP">COP</option>
+                                                <option value="CNY">CNY</option>
                                             </select>
                                         </div>
                                         <div>
@@ -2315,7 +2315,7 @@ export const HonorariosView: React.FC = () => {
                                                 <option value="VES">VES</option>
                                                 <option value="USD">USD</option>
                                                 <option value="EUR">EUR</option>
-                                                <option value="COP">COP</option>
+                                                <option value="CNY">CNY</option>
                                             </select>
                                         </div>
                                     </div>

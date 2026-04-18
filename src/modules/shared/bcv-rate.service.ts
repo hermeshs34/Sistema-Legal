@@ -33,6 +33,7 @@ export const CURRENCY_CONFIG: Record<SupportedCurrency, { symbol: string; name: 
     EUR: { symbol: '€',   name: 'Euro',               flag: '🇪🇺', decimals: 2 },
     VES: { symbol: 'Bs.', name: 'Bolívar Soberano',   flag: '🇻🇪', decimals: 2 },
     COP: { symbol: '$',   name: 'Peso Colombiano',    flag: '🇨🇴', decimals: 0 },
+    CNY: { symbol: '¥',   name: 'Yuan Chino',          flag: '🇨🇳', decimals: 2 },
 };
 
 class CurrencyService {
