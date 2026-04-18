@@ -98,7 +98,7 @@ export const HonorariosView: React.FC = () => {
     const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
     const [showInvoiceFromExpenses, setShowInvoiceFromExpenses] = useState(false);
     const [creatingExpenseInvoice, setCreatingExpenseInvoice] = useState(false);
-    const [expenseCurrency, setExpenseCurrency] = useState<'USD'|'EUR'|'VES'>('USD');
+    const [expenseCurrency, setExpenseCurrency] = useState<Currency>('USD');
     // Exchange Rates
     const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
     const [presentationCurrency, setPresentationCurrency] = useState<Currency>('USD');
@@ -106,9 +106,10 @@ export const HonorariosView: React.FC = () => {
     const [showRatesModal, setShowRatesModal] = useState(false);
     const [rateForm, setRateForm] = useState<Partial<ExchangeRate>>({ currencyFrom:'USD', currencyTo:'VES', rate:0, source:'MANUAL' });
     const [savingRate, setSavingRate] = useState(false);
+    const [syncingRates, setSyncingRates] = useState(false);
     const [convertAmount, setConvertAmount] = useState(1);
-    const [convertFrom, setConvertFrom] = useState<'USD'|'EUR'|'VES'>('USD');
-    const [convertTo, setConvertTo] = useState<'USD'|'EUR'|'VES'>('VES');
+    const [convertFrom, setConvertFrom] = useState<Currency>('USD');
+    const [convertTo, setConvertTo] = useState<Currency>('VES');
     
     // Sync UI states
     const [showSyncModal, setShowSyncModal] = useState(false);
@@ -1332,7 +1333,7 @@ export const HonorariosView: React.FC = () => {
                                         <select
                                             value={expenseCurrency}
                                             onChange={e => {
-                                                const c = e.target.value as 'USD'|'EUR'|'VES';
+                                                const c = e.target.value as Currency;
                                                 setExpenseCurrency(c);
                                                 setExpenseForm({...expenseForm, currency: c, exchangeRate: c === 'USD' ? 1 : expenseForm.exchangeRate});
                                             }}
@@ -1341,6 +1342,7 @@ export const HonorariosView: React.FC = () => {
                                             <option value="USD">🇺🇸 USD — Dólar</option>
                                             <option value="EUR">🇪🇺 EUR — Euro</option>
                                             <option value="VES">🇻🇪 Bs. — Bolívar</option>
+                                            <option value="COP">🇨🇴 COP — Peso Col.</option>
                                         </select>
                                     </div>
                                 </div>
@@ -1826,6 +1828,7 @@ export const HonorariosView: React.FC = () => {
                                         <option value="USD">🇺🇸 USD — Dólar</option>
                                         <option value="EUR">🇪🇺 EUR — Euro</option>
                                         <option value="VES">🇻🇪 Bs. — Bolívar</option>
+                                        <option value="COP">🇨🇴 COP — Peso Col.</option>
                                     </select>
                                 </div>
                                 {invoiceData.currency !== 'USD' && (
@@ -2224,6 +2227,7 @@ export const HonorariosView: React.FC = () => {
                                     <option value="USD">🇺🇸 USD</option>
                                     <option value="EUR">🇪🇺 EUR</option>
                                     <option value="VES">🇻🇪 VES</option>
+                                    <option value="COP">🇨🇴 COP</option>
                                 </select>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 900, fontSize: '1.5rem' }}>⇉</div>
                                 <select value={convertTo} onChange={e => setConvertTo(e.target.value as any)}
@@ -2231,6 +2235,7 @@ export const HonorariosView: React.FC = () => {
                                     <option value="VES">🇻🇪 VES</option>
                                     <option value="USD">🇺🇸 USD</option>
                                     <option value="EUR">🇪🇺 EUR</option>
+                                    <option value="COP">🇨🇴 COP</option>
                                 </select>
                                 <div style={{ background: 'white', borderRadius: '16px', padding: '1rem', textAlign: 'center', minWidth: '140px' }}>
                                     {(() => {
@@ -2244,20 +2249,43 @@ export const HonorariosView: React.FC = () => {
                             </div>
 
                             {/* Dashboard de Tasas Críticas */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem' }}>
                                 {[
                                     { label: 'DÓLAR (BCV)', sub: 'USD → VES', key: 'USD_VES', color: '#10b981', sym: 'Bs.' },
-                                    { label: 'EURO (ECB)', sub: 'EUR → VES', key: 'EUR_VES', color: '#3b82f6', sym: 'Bs.' },
-                                    { label: 'VARIACIÓN Bs.', sub: 'VES → USD', key: 'VES_USD', color: '#f59e0b', sym: '$', dec: 6 },
+                                    { label: 'EURO (BCE)', sub: 'EUR → VES', key: 'EUR_VES', color: '#3b82f6', sym: 'Bs.' },
+                                    { label: 'PESO COL.', sub: 'USD → COP', key: 'USD_COP', color: '#f59e0b', sym: '$', dec: 0 },
+                                    { label: 'COP → VES', sub: 'COP → VES', key: 'COP_VES', color: '#8b5cf6', sym: 'Bs.', dec: 4 },
                                 ].map((t, i) => (
                                     <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                        <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', fontWeight: 800, textTransform: 'uppercase' }}>{t.label}</span>
+                                        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', fontWeight: 800, textTransform: 'uppercase' }}>{t.label}</span>
                                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                                            <span style={{ color: 'white', fontSize: '1.1rem', fontWeight: 900 }}>{t.sym}{latestRates[t.key]?.toLocaleString(undefined, { maximumFractionDigits: t.dec ?? 2 }) || 'N/A'}</span>
-                                            <span style={{ color: t.color, fontSize: '0.6rem', fontWeight: 800, background: `${t.color}20`, padding: '2px 6px', borderRadius: '4px' }}>LIVE</span>
+                                            <span style={{ color: 'white', fontSize: '1rem', fontWeight: 900 }}>{t.sym}{latestRates[t.key]?.toLocaleString(undefined, { maximumFractionDigits: t.dec ?? 2 }) || '—'}</span>
+                                            <span style={{ color: t.color, fontSize: '0.55rem', fontWeight: 800, background: `${t.color}20`, padding: '2px 6px', borderRadius: '4px' }}>LIVE</span>
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                            {/* Botón Sincronizar Todas */}
+                            <div style={{ marginTop: '1rem', textAlign: 'right' }}>
+                                <button
+                                    onClick={async () => {
+                                        setSyncingRates(true);
+                                        try {
+                                            const { data, error } = await supabase.functions.invoke('update-exchange-rates');
+                                            if (error) throw error;
+                                            const [hist, latest] = await Promise.all([exchangeRateService.getAll(), exchangeRateService.getLatestAll()]);
+                                            setExchangeRates(hist);
+                                            setLatestRates(latest);
+                                            alert(`✅ ${data?.rates?.length || 0} tasas actualizadas`);
+                                        } catch (e: any) { alert('Error: ' + e.message); }
+                                        finally { setSyncingRates(false); }
+                                    }}
+                                    disabled={syncingRates}
+                                    style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: 'white', padding: '0.5rem 1.25rem', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+                                >
+                                    <RefreshCw size={14} className={syncingRates ? 'spin' : ''}/>
+                                    {syncingRates ? 'Sincronizando...' : '🔄 Sincronizar Tasas (BCV + Internacional)'}
+                                </button>
                             </div>
                         </div>
 
@@ -2276,6 +2304,7 @@ export const HonorariosView: React.FC = () => {
                                                 <option value="USD">USD</option>
                                                 <option value="EUR">EUR</option>
                                                 <option value="VES">VES</option>
+                                                <option value="COP">COP</option>
                                             </select>
                                         </div>
                                         <div>
@@ -2284,6 +2313,7 @@ export const HonorariosView: React.FC = () => {
                                                 <option value="VES">VES</option>
                                                 <option value="USD">USD</option>
                                                 <option value="EUR">EUR</option>
+                                                <option value="COP">COP</option>
                                             </select>
                                         </div>
                                     </div>
