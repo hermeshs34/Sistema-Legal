@@ -61,16 +61,18 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, children, onLogout
                 overflow: 'hidden',
                 position: 'fixed',
                 height: '100vh',
-                zIndex: 20
+                zIndex: 20,
+                display: 'flex',
+                flexDirection: 'column'
             }}>
-                <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
                     <div style={{ background: '#ffffff', borderRadius: '14px', padding: '12px 16px', marginBottom: '0.6rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
                         <img src="/hermes-ai-logo.svg" alt="HermesAI Solutions" style={{ width: '100%', display: 'block' }} />
                     </div>
                     <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.12em', textAlign: 'center' }}>Plataforma LegalDoc VE</div>
                 </div>
 
-                <nav style={{ padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <nav className="sidebar-nav" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
                     {filteredItems.map(item => (
                         <button
                             key={item.id}
@@ -79,7 +81,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, children, onLogout
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '0.75rem',
-                                padding: '0.75rem 1rem',
+                                padding: '0.65rem 1rem',
                                 width: '100%',
                                 background: currentView === item.id ? 'var(--legal-800)' : 'transparent',
                                 border: 'none',
@@ -88,13 +90,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, children, onLogout
                                 cursor: 'pointer',
                                 textAlign: 'left',
                                 transition: 'background 0.2s',
-                                whiteSpace: 'nowrap'
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0
                             }}
                             onMouseEnter={(e) => { if (currentView !== item.id) e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
                             onMouseLeave={(e) => { if (currentView !== item.id) e.currentTarget.style.background = 'transparent' }}
                         >
                             <item.icon size={20} />
-                            <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.label}</span>
+                            <span style={{ fontSize: '0.88rem', fontWeight: 500 }}>{item.label}</span>
                         </button>
                     ))}
                 </nav>
