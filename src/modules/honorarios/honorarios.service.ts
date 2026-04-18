@@ -683,18 +683,44 @@ class ExchangeRateService {
         return data ? Number(data.rate) : 0;
     }
 
-    /** Obtiene las tasas vigentes para todos los pares */
+    /** Obtiene las tasas vigentes para todos los pares (incluye inversos calculados) */
     async getLatestAll(): Promise<Record<string, number>> {
-        const pairs = [
-            ['USD','VES'], ['VES','USD'],
-            ['EUR','VES'], ['VES','EUR'],
-            ['EUR','USD'], ['USD','EUR'],
+        // Pares directos que existen en la BD
+        const directPairs = [
+            ['USD','VES'], ['EUR','VES'], ['EUR','USD'], ['USD','COP'], ['COP','VES'],
         ];
         const results: Record<string, number> = {};
-        await Promise.all(pairs.map(async ([from, to]) => {
+        
+        // Obtener todas las tasas directas
+        await Promise.all(directPairs.map(async ([from, to]) => {
             const rate = await this.getLatestRate(from, to);
-            results[`${from}_${to}`] = rate;
+            if (rate > 0) results[`${from}_${to}`] = rate;
         }));
+        
+        // Calcular pares inversos automáticamente
+        const computeInverse = (from: string, to: string) => {
+            const key = `${from}_${to}`;
+            const inverseKey = `${to}_${from}`;
+            if (!results[key] && results[inverseKey] && results[inverseKey] > 0) {
+                results[key] = 1 / results[inverseKey];
+            }
+        };
+        
+        // Inversos fundamentales
+        computeInverse('VES', 'USD');  // 1/USD_VES
+        computeInverse('USD', 'EUR');  // 1/EUR_USD
+        computeInverse('VES', 'EUR');  // 1/EUR_VES
+        computeInverse('COP', 'USD');  // 1/USD_COP
+        computeInverse('VES', 'COP');  // 1/COP_VES
+        
+        // Pares cruzados vía USD (si aún no existen)
+        if (!results['EUR_COP'] && results['EUR_USD'] && results['USD_COP']) {
+            results['EUR_COP'] = results['EUR_USD'] * results['USD_COP'];
+        }
+        if (!results['COP_EUR'] && results['EUR_COP'] && results['EUR_COP'] > 0) {
+            results['COP_EUR'] = 1 / results['EUR_COP'];
+        }
+        
         return results;
     }
 

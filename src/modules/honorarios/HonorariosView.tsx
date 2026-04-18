@@ -462,13 +462,15 @@ export const HonorariosView: React.FC = () => {
     const renderFmt = (valUsd: number, forceCurrency?: Currency) => {
         if (forceCurrency) {
             const sym = CURRENCY_SYMBOLS[forceCurrency] || '$';
-            return `${sym}${valUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const dec = forceCurrency === 'COP' ? 0 : 2;
+            return `${sym}${valUsd.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec })}`;
         }
         
         const rate = (presentationCurrency === 'USD') ? 1 : latestRates[`USD_${presentationCurrency}`] || 1;
         const finalValue = valUsd * rate;
         const sym = CURRENCY_SYMBOLS[presentationCurrency] || '$';
-        return `${sym}${finalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const dec = presentationCurrency === 'COP' ? 0 : 2;
+        return `${sym}${finalValue.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec })}`;
     };
 
     const handleDeleteInvoice = async (id: string) => {
@@ -933,7 +935,7 @@ export const HonorariosView: React.FC = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b' }}>MOSTRAR TODO EN:</span>
                         <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '12px', gap: '4px' }}>
-                            {(['USD', 'EUR', 'VES'] as Currency[]).map(cur => (
+                            {(['USD', 'EUR', 'VES', 'COP'] as Currency[]).map(cur => (
                                 <button
                                     key={cur}
                                     onClick={() => setPresentationCurrency(cur)}
