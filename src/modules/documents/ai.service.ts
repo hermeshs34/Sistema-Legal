@@ -1,5 +1,6 @@
 import { supabase } from '../../core/supabase.ts';
 import { authService } from '../../core/auth.service.ts';
+import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 export interface AnalysisResult {
     score: number; // Mantenemos internamente como score, mapeamos a confidence en DB
@@ -35,6 +36,111 @@ export interface IAIService {
     }>;
     indexLegalKnowledge(entityId: string, type: string, content: string, orgId: string, metadata: any): Promise<void>;
 }
+
+type DocumentRecord = {
+    id: string;
+    title: string | null;
+    description: string | null;
+    type: string | null;
+    metadata: Record<string, unknown> | null;
+    file_url: string | null;
+};
+
+const TEXT_EXTENSIONS = new Set(['txt', 'md', 'csv', 'json', 'xml', 'html', 'htm']);
+const MAX_EXTRACT_CHARS = 24000;
+const MAX_PDF_PAGES = 25;
+
+const sanitizeWhitespace = (text: string): string =>
+    text
+        .replace(/\r/g, '')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+const truncateForPrompt = (text: string, maxChars: number = MAX_EXTRACT_CHARS): string => {
+    if (text.length <= maxChars) return text;
+    return `${text.slice(0, maxChars)}\n\n[...contenido truncado para análisis...]`;
+};
+
+const resolveExtension = (pathOrUrl: string): string => {
+    const cleanPath = pathOrUrl.split('?')[0].split('#')[0];
+    const filename = cleanPath.split('/').pop() || '';
+    const dotIndex = filename.lastIndexOf('.');
+    if (dotIndex === -1) return '';
+    return filename.slice(dotIndex + 1).toLowerCase();
+};
+
+const extractTextFromPdf = async (buffer: ArrayBuffer): Promise<string> => {
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    if (pdfjs.GlobalWorkerOptions.workerSrc !== pdfWorkerSrc) {
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
+    }
+
+    const loadingTask = pdfjs.getDocument({
+        data: new Uint8Array(buffer),
+    });
+    const pdf = await loadingTask.promise;
+
+    const pagesToRead = Math.min(pdf.numPages, MAX_PDF_PAGES);
+    const pageTexts: string[] = [];
+
+    for (let pageNumber = 1; pageNumber <= pagesToRead; pageNumber += 1) {
+        const page = await pdf.getPage(pageNumber);
+        const textContent = await page.getTextContent();
+        const text = textContent.items
+            .map((item) => ('str' in item && typeof item.str === 'string' ? item.str : ''))
+            .filter((piece) => piece.length > 0)
+            .join(' ');
+
+        if (text.length > 0) pageTexts.push(text);
+    }
+
+    return sanitizeWhitespace(pageTexts.join('\n\n'));
+};
+
+const resolveDownloadUrl = async (fileUrl: string): Promise<string> => {
+    if (!fileUrl) return '';
+    if (fileUrl.startsWith('http')) return fileUrl;
+
+    const { data, error } = await supabase.storage
+        .from('legal-documents')
+        .createSignedUrl(fileUrl, 600);
+
+    if (error || !data?.signedUrl) {
+        console.error('No se pudo generar Signed URL para análisis IA:', error);
+        return '';
+    }
+
+    return data.signedUrl;
+};
+
+const extractTextFromStoredFile = async (fileUrl: string): Promise<string> => {
+    const ext = resolveExtension(fileUrl);
+    if (!ext) return '';
+
+    const signedUrl = await resolveDownloadUrl(fileUrl);
+    if (!signedUrl) return '';
+
+    try {
+        const response = await fetch(signedUrl);
+        if (!response.ok) return '';
+
+        if (ext === 'pdf') {
+            const buffer = await response.arrayBuffer();
+            return extractTextFromPdf(buffer);
+        }
+
+        if (TEXT_EXTENSIONS.has(ext)) {
+            const rawText = await response.text();
+            return sanitizeWhitespace(rawText);
+        }
+
+        return '';
+    } catch (error) {
+        console.error('Error extrayendo texto del archivo para IA:', error);
+        return '';
+    }
+};
 
 export const aiService: IAIService = {
     async analyze(documentId: string, text: string, type: string, organizationId: string, userId: string): Promise<AnalysisResult> {
@@ -132,12 +238,67 @@ export const aiService: IAIService = {
         }
     },
 
-    async simulateOCR(_documentId: string, title: string, type: string): Promise<string> {
-        return `CONTENIDO PROCESADO POR MOTOR OCR VINCULADO A LEGALDOC VE\n\nDocumento: ${title}\nTipo: ${type}\n\n[TEXTO EXTRAÍDO CON ÉXITO]`;
+    async simulateOCR(documentId: string, title: string, type: string): Promise<string> {
+        return this.extractFullContent(documentId, type, title);
     },
 
-    async extractFullContent(_documentId: string, _type: string, title: string): Promise<string> {
-        return `Carga completa del contenido de "${title}" procesada para análisis profundo de IA.`;
+    async extractFullContent(documentId: string, type: string, title: string): Promise<string> {
+        const user = authService.getCurrentUser();
+        const orgId = user?.organizationId;
+
+        const { data, error } = await supabase
+            .from('documents')
+            .select('id, title, description, type, metadata, file_url')
+            .eq('id', documentId)
+            .eq('organization_id', orgId)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error leyendo documento para análisis IA:', error);
+        }
+
+        const dbDoc = (data || null) as DocumentRecord | null;
+        const finalTitle = dbDoc?.title || title || 'Documento sin título';
+        const finalType = dbDoc?.type || type || 'other';
+        const finalDescription = (dbDoc?.description || '').trim();
+        const metadata = dbDoc?.metadata ?? {};
+        const storagePath = dbDoc?.file_url || '';
+
+        const metadataLines = Object.entries(metadata)
+            .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
+            .slice(0, 10)
+            .map(([key, value]) => {
+                if (Array.isArray(value)) return `- ${key}: ${value.join(', ')}`;
+                return `- ${key}: ${String(value)}`;
+            });
+
+        const extractedFileText = storagePath ? await extractTextFromStoredFile(storagePath) : '';
+
+        const sections = [
+            `DOCUMENTO LEGAL A ANALIZAR`,
+            `ID: ${documentId}`,
+            `Título: ${finalTitle}`,
+            `Tipo: ${finalType}`,
+        ];
+
+        if (finalDescription) {
+            sections.push(`Descripción registrada:\n${finalDescription}`);
+        }
+
+        if (metadataLines.length > 0) {
+            sections.push(`Metadatos:\n${metadataLines.join('\n')}`);
+        }
+
+        if (extractedFileText) {
+            sections.push(`Texto extraído del archivo:\n${truncateForPrompt(extractedFileText)}`);
+        } else if (storagePath) {
+            sections.push(
+                `Nota técnica: existe archivo adjunto (${storagePath}), pero no se pudo extraer texto legible en cliente. ` +
+                `Analiza con título, descripción y metadatos disponibles, sin inventar cláusulas literales.`
+            );
+        }
+
+        return sections.join('\n\n');
     },
 
     async getLatestAnalysis(documentId: string): Promise<AnalysisResult | null> {

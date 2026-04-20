@@ -14,6 +14,17 @@ interface DocumentAnalysisModalProps {
 
 type RegisterState = 'idle' | 'checking' | 'converting' | 'done' | 'already_exists';
 
+const isLegacyOcrAnalysis = (result: AnalysisResult | null): boolean => {
+    if (!result) return false;
+    const summary = result.summary.toLowerCase();
+    return (
+        summary.includes('sistema ocr') ||
+        summary.includes('extracción automatizada') ||
+        summary.includes('no se dispone de detalles específicos') ||
+        summary.includes('legaldoc ve')
+    );
+};
+
 export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
     document,
     onClose,
@@ -43,10 +54,10 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
         setError(null);
         try {
             let result = await aiService.getLatestAnalysis(document.id);
-            if (!result) {
-                // Paso 1: OCR / Extracción
+            if (!result || isLegacyOcrAnalysis(result)) {
+                // Paso 1: Extracción de contenido del documento
                 setOcrWorking(true);
-                const extractedText = await aiService.simulateOCR(document.id, document.title, document.type);
+                const extractedText = await aiService.extractFullContent(document.id, document.type, document.title);
                 setOcrWorking(false);
                 
                 // Paso 2: Análisis real con GPT-4o
@@ -274,10 +285,10 @@ export const DocumentAnalysisModal: React.FC<DocumentAnalysisModalProps> = ({
                             </div>
                             <div style={{ textAlign: 'center' }}>
                                 <h3 style={{ color: '#1e293b', fontWeight: 700, margin: '0 0 0.5rem' }}>
-                                    {ocrWorking ? 'Extrayendo texto digital (OCR)...' : 'Analizando riesgos legales...'}
+                                    {ocrWorking ? 'Extrayendo contenido del documento...' : 'Analizando riesgos legales...'}
                                 </h3>
                                 <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0 }}>
-                                    {ocrWorking ? 'Procesando capas del documento para auditoría SHA-256' : 'Consultando motor GPT-4o con contexto venezolano'}
+                                    {ocrWorking ? 'Preparando contexto técnico para análisis jurídico' : 'Consultando motor GPT-4o con contexto venezolano'}
                                 </p>
                             </div>
                         </div>
