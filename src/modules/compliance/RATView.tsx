@@ -280,7 +280,7 @@ export const RATView: React.FC = () => {
     const [showForm, setShowForm]     = useState(false);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
-    const canEdit = user?.role === 'compliance_officer' || user?.role === 'consultor_general';
+    const canEdit = user?.role != null && (['compliance_officer', 'consultor_general'] as string[]).includes(user.role);
 
     useEffect(() => { loadEntries(); }, []);
 

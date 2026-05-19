@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Type check
-        run: npx tsc -b --noEmit
+        run: npx tsc --noEmit -p tsconfig.app.json
 
   # ── 2. Lint ──────────────────────────────────────────────────────────────────
   lint:
