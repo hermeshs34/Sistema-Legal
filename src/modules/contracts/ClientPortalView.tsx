@@ -261,10 +261,9 @@ export const ClientPortalView: React.FC = () => {
                     const { data } = await supabase
                         .from('expedientes')
                         .select('id, titulo, tipo_proceso, parte_actora, parte_demandada, nuestra_posicion, status, riesgo, fecha_inicio, tribunal')
-                        .eq('organization_id', portalToken.organizationId);
+                        .eq('organization_id', portalToken.organizationId)
+                        .eq('client_id', portalToken.clientId);
 
-                    // Filtrar por client_id (parte_actora o parte_demandada que contenga el nombre del cliente)
-                    // Dado que client_id en portal_tokens es el ID en la tabla clients, buscar expedientes relacionados
                     setExpedientes((data ?? []).map(r => ({
                         id:              r.id as string,
                         titulo:          r.titulo as string,
@@ -283,7 +282,8 @@ export const ClientPortalView: React.FC = () => {
                     const { data } = await supabase
                         .from('contracts')
                         .select('id, title, type, status, value, currency, start_date, end_date')
-                        .eq('organization_id', portalToken.organizationId);
+                        .eq('organization_id', portalToken.organizationId)
+                        .eq('client_id', portalToken.clientId);
 
                     setContratos((data ?? []).map(r => ({
                         id:        r.id as string,
