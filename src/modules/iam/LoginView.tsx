@@ -68,7 +68,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             const result = await authService.login(email, password);
             if (result.mfaRequired && result.factorId) {
                 setPendingUser(result.user); setFactorId(result.factorId); setStep('mfa');
-            } else if (authService.requiresMFA(result.user.role)) {
+            } else if (result.enrollmentRequired) {
                 setPendingUser(result.user); await startMFAEnrollment();
             } else {
                 onLogin(result.user);
@@ -118,7 +118,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         setIsLoading(true); setError('');
         try {
             await authService.confirmMFAEnrollment(enrollFactorId, mfaCode);
-            if (pendingUser) onLogin(pendingUser);
+            if (pendingUser) {
+                authService.saveSession(pendingUser);
+                onLogin(pendingUser);
+            }
         } catch (err: any) {
             setError(err.message || 'Error confirmando MFA'); setMfaCode('');
         } finally {

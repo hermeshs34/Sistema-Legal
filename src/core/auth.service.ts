@@ -104,7 +104,7 @@ class AuthService {
     async login(
         email: string,
         password: string
-    ): Promise<{ user: User; mfaRequired: boolean; factorId?: string }> {
+    ): Promise<{ user: User; mfaRequired: boolean; factorId?: string; enrollmentRequired?: boolean }> {
         const cleanEmail = email.trim().toLowerCase();
 
         // 1. Rate limit — bloquea antes de intentar contra Supabase
@@ -175,10 +175,14 @@ class AuthService {
                 // Factor activo → NO guardar sesión, esperar verificación TOTP
                 return { user: mappedUser, mfaRequired: true, factorId: verifiedTOTP.id };
             }
-            // Factor no configurado → sesión válida, pero App mostrará banner de enrolamiento
+            // Factor no configurado → enrollment obligatorio.
+            // NO guardar sesión: si el usuario refresca antes de completar el enrollment
+            // syncSession() encontrará AAL1 y forzará cierre de sesión.
+            this.clearRateLimit(cleanEmail);
+            return { user: mappedUser, mfaRequired: false, enrollmentRequired: true };
         }
 
-        // 5. Sesión directa (sin MFA o rol de bajo riesgo)
+        // 5. Sesión directa (rol de bajo riesgo, sin MFA requerido)
         this._saveSession(mappedUser);
         this.clearRateLimit(cleanEmail);
         return { user: mappedUser, mfaRequired: false };
@@ -254,6 +258,11 @@ class AuthService {
      * Persiste el perfil de usuario en sessionStorage (se borra al cerrar el tab).
      * NUNCA almacena tokens JWT — esos los gestiona el cliente Supabase internamente.
      */
+    /** Guarda la sesión tras enrollment MFA exitoso (llamar desde LoginView). */
+    saveSession(user: User): void {
+        this._saveSession(user);
+    }
+
     private _saveSession(user: User): void {
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
     }
@@ -324,26 +333,20 @@ class AuthService {
         const freshUser = mapProfile(profile);
 
         // ── Validación AAL (Assurance Level) — anti-bypass MFA por refresh ──────
-        // Si el rol requiere MFA, verificar que la sesión sea AAL2 (TOTP completado).
-        // Una sesión AAL1 (solo contraseña) con rol de alto riesgo se fuerza a cerrar.
+        // Para roles que requieren MFA, SOLO se permite sesión AAL2 (TOTP completado).
+        // Cualquier sesión AAL1 —ya sea porque el factor no fue verificado o porque
+        // el usuario aún no ha completado el enrollment— se fuerza a cerrar.
         if (MFA_REQUIRED_ROLES.includes(freshUser.role)) {
             const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-            const currentLevel = aalData?.currentLevel;
-            const nextLevel    = aalData?.nextLevel;
-
-            // nextLevel === 'aal2' significa que el factor TOTP existe pero NO fue verificado
-            if (nextLevel === 'aal2' && currentLevel !== 'aal2') {
+            if (aalData?.currentLevel !== 'aal2') {
                 console.warn(
-                    `[AuthService] Rol "${freshUser.role}" requiere AAL2 pero sesión es ${currentLevel}. ` +
-                    'Refresh detectado sin MFA completado. Forzando cierre de sesión.'
+                    `[AuthService] Rol "${freshUser.role}" requiere AAL2 pero sesión es ` +
+                    `${aalData?.currentLevel ?? 'desconocido'}. Forzando cierre de sesión.`
                 );
                 sessionStorage.removeItem(SESSION_KEY);
                 await supabase.auth.signOut();
                 return null;
             }
-
-            // Sin factor TOTP configurado aún → sesión válida pero enrolamiento pendiente
-            // No bloqueamos: el LoginView mostrará el flujo de enrolamiento en el próximo login
         }
 
         this._saveSession(freshUser);
