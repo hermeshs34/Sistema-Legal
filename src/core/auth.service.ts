@@ -322,6 +322,30 @@ class AuthService {
         }
 
         const freshUser = mapProfile(profile);
+
+        // ── Validación AAL (Assurance Level) — anti-bypass MFA por refresh ──────
+        // Si el rol requiere MFA, verificar que la sesión sea AAL2 (TOTP completado).
+        // Una sesión AAL1 (solo contraseña) con rol de alto riesgo se fuerza a cerrar.
+        if (MFA_REQUIRED_ROLES.includes(freshUser.role)) {
+            const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            const currentLevel = aalData?.currentLevel;
+            const nextLevel    = aalData?.nextLevel;
+
+            // nextLevel === 'aal2' significa que el factor TOTP existe pero NO fue verificado
+            if (nextLevel === 'aal2' && currentLevel !== 'aal2') {
+                console.warn(
+                    `[AuthService] Rol "${freshUser.role}" requiere AAL2 pero sesión es ${currentLevel}. ` +
+                    'Refresh detectado sin MFA completado. Forzando cierre de sesión.'
+                );
+                sessionStorage.removeItem(SESSION_KEY);
+                await supabase.auth.signOut();
+                return null;
+            }
+
+            // Sin factor TOTP configurado aún → sesión válida pero enrolamiento pendiente
+            // No bloqueamos: el LoginView mostrará el flujo de enrolamiento en el próximo login
+        }
+
         this._saveSession(freshUser);
         return freshUser;
     }
