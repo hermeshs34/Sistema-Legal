@@ -6,12 +6,14 @@ import {
     Edit2,
     Trash2,
     Shield,
+    ShieldCheck,
     Mail,
     CheckCircle,
     XCircle,
     MoreVertical,
     Filter
 } from 'lucide-react';
+import { ROL_META } from '../../core/user.types.ts';
 import { userService } from './user.service.ts';
 import { UserForm } from './UserForm';
 import type { User, UserRole } from '../../core/user.types.ts';
@@ -66,14 +68,12 @@ export const UserListView: React.FC = () => {
         user.role.replace('_', ' ').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    /** Genera el estilo del badge leyendo ROL_META para que sea consistente con user.types.ts */
     const getRoleBadgeStyle = (role: UserRole) => {
-        switch (role) {
-            case 'consultor_general': return { bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe' };
-            case 'abogado_senior': return { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' };
-            case 'abogado_junior': return { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' };
-            case 'consultor_principal': return { bg: '#faf5ff', color: '#6b21a8', border: '#e9d5ff' };
-            default: return { bg: '#f9fafb', color: '#374151', border: '#e5e7eb' };
-        }
+        const meta = ROL_META[role];
+        if (!meta) return { bg: '#f9fafb', color: '#374151', border: '#e5e7eb' };
+        // Convertir hex a versiones claras para el badge
+        return { bg: `${meta.color}14`, color: meta.color, border: `${meta.color}40` };
     };
 
     return (
@@ -148,8 +148,8 @@ export const UserListView: React.FC = () => {
                 {[
                     { label: 'Total Usuarios', value: users.length, icon: Users, color: '#2563eb' },
                     { label: 'Usuarios Activos', value: users.filter(u => u.isActive).length, icon: CheckCircle, color: '#059669' },
-                    { label: 'Roles Definidos', value: 5, icon: Shield, color: '#7c3aed' },
-                    { label: 'Acciones Pendientes', value: 0, icon: Filter, color: '#ea580c' }
+                    { label: 'Roles Definidos', value: 8, icon: Shield, color: '#7c3aed' },
+                    { label: 'Con MFA Activo', value: users.filter(u => ROL_META[u.role]?.mfaRequired).length, icon: ShieldCheck, color: '#b45309' }
                 ].map((stat, i) => (
                     <div key={i} className="premium-card" style={{
                         padding: '1.5rem',
@@ -252,19 +252,31 @@ export const UserListView: React.FC = () => {
                                             </div>
                                         </td>
                                         <td style={{ padding: '1.25rem 1.5rem' }}>
-                                            <span style={{
-                                                padding: '0.375rem 0.75rem',
-                                                borderRadius: '20px',
-                                                fontSize: '0.75rem',
-                                                fontWeight: 700,
-                                                backgroundColor: roleStyle.bg,
-                                                color: roleStyle.color,
-                                                border: `1px solid ${roleStyle.border}`,
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.025em'
-                                            }}>
-                                                {user.role.replace('_', ' ')}
-                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                <span style={{
+                                                    padding: '0.375rem 0.75rem',
+                                                    borderRadius: '20px',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 700,
+                                                    backgroundColor: roleStyle.bg,
+                                                    color: roleStyle.color,
+                                                    border: `1px solid ${roleStyle.border}`,
+                                                    letterSpacing: '0.025em',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    {ROL_META[user.role]?.label ?? user.role.replace(/_/g, ' ')}
+                                                </span>
+                                                {ROL_META[user.role]?.mfaRequired && (
+                                                    <span title="MFA obligatorio" style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                        fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px',
+                                                        borderRadius: '999px', background: '#fef3c7', color: '#92400e',
+                                                        border: '1px solid #fde68a', whiteSpace: 'nowrap'
+                                                    }}>
+                                                        <ShieldCheck size={10} /> MFA
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td style={{ padding: '1.25rem 1.5rem' }}>
                                             <button

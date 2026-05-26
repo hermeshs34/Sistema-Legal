@@ -287,29 +287,34 @@ class TimeEntryService {
     async save(entry: Partial<TimeEntry>): Promise<TimeEntry> {
         const orgId = this.orgId();
         const user = authService.getCurrentUser();
-        const currency = entry.currency ?? 'USD';
         const hours = entry.hours ?? 0;
-        const rate = entry.rate ?? entry.rateUsd ?? 0;
-        const exRate = entry.exchangeRate || 1;
-        
-        const rateUsd = currency === 'USD' ? rate : (rate / exRate);
-        const amount = hours * rate;
-        const amountUsd = hours * rateUsd;
 
+        // Calcular rate_usd:
+        //   - Si la moneda es USD → rate_usd = rate (la tarifa ingresada)
+        //   - Si es otra moneda → convertir usando exchangeRate
+        //   - Solo usar entry.rateUsd como fallback si no hay rate definido
+        const currency = entry.currency ?? 'USD';
+        const inputRate = entry.rate ?? 0;
+        const exRate = entry.exchangeRate || 1;
+        const rateUsd = inputRate > 0
+            ? (currency === 'USD' ? inputRate : inputRate * exRate)
+            : (entry.rateUsd ?? 0);
+
+        // Payload estrictamente alineado con las columnas reales de time_entries.
+        // NO INCLUIR:
+        //   - currency, rate, amount → no existen en el schema (PGRST204)
+        //   - amount_usd → es columna GENERATED en PostgreSQL (error 428C9),
+        //     se calcula automáticamente como hours * rate_usd
         const payload = {
-            matter_id: entry.matterId,
-            lawyer_id: entry.lawyerId,
-            user_id: user?.id,
-            date: entry.date ?? new Date().toISOString().split('T')[0],
-            description: entry.description,
-            category: entry.category ?? 'GENERAL',
+            matter_id:       entry.matterId,
+            lawyer_id:       entry.lawyerId ?? null,
+            user_id:         user?.id,
+            date:            entry.date ?? new Date().toISOString().split('T')[0],
+            description:     entry.description,
+            category:        entry.category ?? 'GENERAL',
             hours,
-            currency,
-            rate,
-            rate_usd: rateUsd,
-            amount,
-            amount_usd: amountUsd,
-            is_billable: entry.isBillable ?? true,
+            rate_usd:        rateUsd,
+            is_billable:     entry.isBillable ?? true,
             organization_id: orgId,
         };
 

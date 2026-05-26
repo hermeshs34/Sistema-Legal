@@ -1,3 +1,5 @@
+import type { InpreStatus } from './inpreabogado.service.ts';
+
 export type LawyerType = 'INTERNAL' | 'EXTERNAL';
 
 export interface Lawyer {
@@ -10,4 +12,8 @@ export interface Lawyer {
     specialty: string; // e.g., 'Corporativo', 'Litigio', 'Compliance'
     isActive: boolean;
     organizationId?: string;
+    // ── Verificación INPRE ───────────────────────────────────────────────────
+    inpreStatus?: InpreStatus;
+    inpreVerifiedAt?: string;
+    inpreNextReview?: string;
 }

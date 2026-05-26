@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, User, Mail, Camera, Info, Upload, Loader2, Lock } from 'lucide-react';
+import { X, Save, User, Mail, Camera, Info, Upload, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import { userService } from './user.service.ts';
 import type { User as AppUser, UserRole } from '../../core/user.types.ts';
 
@@ -97,12 +97,17 @@ export const UserForm: React.FC<UserFormProps> = ({ user, onClose, onSave }) => 
         }
     };
 
-    const roles: { value: UserRole; label: string; description: string }[] = [
-        { value: 'consultor_general', label: 'Consultor General', description: 'Acceso total al sistema y gestión de usuarios.' },
-        { value: 'abogado_senior', label: 'Abogado Senior', description: 'Acceso a todos los documentos y aprobación de contratos.' },
-        { value: 'abogado_junior', label: 'Abogado Junior', description: 'Acceso a documentos asignados y creación de borradores.' },
-        { value: 'consultor_principal', label: 'Consultor Principal', description: 'Acceso a reportes y auditoría parcial.' },
-        { value: 'aprendiz', label: 'Aprendiz', description: 'Acceso limitado de solo lectura a documentos asignados.' }
+    const roles: { value: UserRole; label: string; description: string; color: string; mfa: boolean; group: string }[] = [
+        // ── Roles internos ──────────────────────────────────────────────────────
+        { value: 'consultor_general',   label: 'Consultor General',   description: 'Administrador total: CRUD completo, gestión de usuarios y parámetros del sistema.',     color: '#7c3aed', mfa: true,  group: 'Internos' },
+        { value: 'abogado_senior',      label: 'Abogado Senior',      description: 'Acceso completo a documentos, contratos, expedientes y aprobación de firmas.',          color: '#1d4ed8', mfa: true,  group: 'Internos' },
+        { value: 'abogado_junior',      label: 'Abogado Junior',      description: 'Acceso a documentos asignados, carga de actuaciones y borradores propios.',              color: '#0369a1', mfa: false, group: 'Internos' },
+        { value: 'consultor_principal', label: 'Consultor Principal', description: 'Solo lectura y exportación de reportes. Sin capacidad de edición.',                     color: '#0f766e', mfa: false, group: 'Internos' },
+        { value: 'aprendiz',            label: 'Aprendiz',            description: 'Observación limitada de documentos asignados. Sin exportación.',                        color: '#6b7280', mfa: false, group: 'Internos' },
+        // ── Roles regulatorios / especiales ─────────────────────────────────────
+        { value: 'compliance_officer',  label: 'Compliance Officer',  description: 'AML/CFT y cumplimiento regulatorio (SUDEBAN/SUGEF). Acceso a auditoría completa y reportes regulatorios. MFA obligatorio.', color: '#b45309', mfa: true, group: 'Regulatorios' },
+        { value: 'auditor_externo',     label: 'Auditor Externo',     description: 'Solo lectura de todos los módulos + exportación. Sin acceso a datos personales de clientes. MFA obligatorio.',              color: '#374151', mfa: true, group: 'Regulatorios' },
+        { value: 'gerente_firma',       label: 'Gerente de Firma',    description: 'Supervisión estratégica total sin capacidad de modificación. Visibilidad de honorarios y expedientes. MFA obligatorio.',     color: '#1e3a8a', mfa: true, group: 'Directivos'  },
     ];
 
     return (
@@ -376,35 +381,64 @@ export const UserForm: React.FC<UserFormProps> = ({ user, onClose, onSave }) => 
 
                         {/* Role Selection */}
                         <div style={{ gridColumn: 'span 2' }}>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#1e293b', marginBottom: '0.5rem' }}>Asignación de Rol y Nivel de Acceso</label>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                {roles.map((role) => (
-                                    <label key={role.value} style={{
-                                        display: 'flex',
-                                        alignItems: 'flex-start',
-                                        gap: '1rem',
-                                        padding: '1rem',
-                                        borderRadius: '12px',
-                                        border: formData.role === role.value ? '2px solid #2563eb' : '1.5px solid #e2e8f0',
-                                        background: formData.role === role.value ? '#eff6ff' : 'white',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s'
-                                    }}>
-                                        <input
-                                            type="radio"
-                                            name="role"
-                                            value={role.value}
-                                            checked={formData.role === role.value}
-                                            onChange={() => setFormData({ ...formData, role: role.value })}
-                                            style={{ marginTop: '4px' }}
-                                        />
-                                        <div>
-                                            <div style={{ fontWeight: 700, color: formData.role === role.value ? '#1e40af' : '#1e293b', fontSize: '0.95rem' }}>{role.label}</div>
-                                            <div style={{ fontSize: '0.8125rem', color: formData.role === role.value ? '#1d4ed8' : '#64748b' }}>{role.description}</div>
-                                        </div>
-                                    </label>
-                                ))}
-                            </div>
+                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#1e293b', marginBottom: '0.75rem' }}>
+                                Asignación de Rol y Nivel de Acceso
+                            </label>
+                            {/* Agrupar roles */}
+                            {['Internos', 'Regulatorios', 'Directivos'].map(group => (
+                                <div key={group} style={{ marginBottom: '1.25rem' }}>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem', paddingLeft: '0.25rem' }}>
+                                        {group}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                                        {roles.filter(r => r.group === group).map((role) => {
+                                            const isSelected = formData.role === role.value;
+                                            return (
+                                                <label key={role.value} style={{
+                                                    display: 'flex',
+                                                    alignItems: 'flex-start',
+                                                    gap: '1rem',
+                                                    padding: '0.875rem 1rem',
+                                                    borderRadius: '12px',
+                                                    border: isSelected ? `2px solid ${role.color}` : '1.5px solid #e2e8f0',
+                                                    background: isSelected ? `${role.color}10` : 'white',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s'
+                                                }}>
+                                                    <input
+                                                        type="radio"
+                                                        name="role"
+                                                        value={role.value}
+                                                        checked={isSelected}
+                                                        onChange={() => setFormData({ ...formData, role: role.value })}
+                                                        style={{ marginTop: '3px' }}
+                                                    />
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                                                            <span style={{ fontWeight: 700, color: isSelected ? role.color : '#1e293b', fontSize: '0.9rem' }}>
+                                                                {role.label}
+                                                            </span>
+                                                            {role.mfa && (
+                                                                <span title="MFA obligatorio para este rol" style={{
+                                                                    display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                                    fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px',
+                                                                    borderRadius: '999px', background: '#fef3c7', color: '#92400e',
+                                                                    border: '1px solid #fde68a'
+                                                                }}>
+                                                                    <ShieldCheck size={10} /> MFA
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.78rem', color: isSelected ? '#475569' : '#94a3b8', lineHeight: '1.4' }}>
+                                                            {role.description}
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         {/* Status Toggle */}

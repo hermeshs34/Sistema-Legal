@@ -17,6 +17,19 @@ import { useParams } from 'react-router-dom';
 import { Scale, FileText, Briefcase, Receipt, FolderOpen, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../core/supabase.ts';
 
+/**
+ * El portal de cliente se valida 100% server-side a través de la Edge Function
+ * `validate-portal-token`. Esto evita que un atacante con conocimiento del
+ * schema pueda hacer queries directas a la tabla client_portal_tokens con la
+ * anon key (la RLS está endurecida a partir del 19/05/2026).
+ *
+ * Hardening server-side:
+ *   - service_role_key valida y filtra
+ *   - Rate limiting (5 intentos / 15 min)
+ *   - Log forense en portal_access_log
+ *   - Filtrado Jaccard de expedientes/contratos contra client_name
+ */
+
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
 interface PortalToken {
@@ -161,166 +174,111 @@ export const ClientPortalView: React.FC = () => {
 
     const [loadingData,  setLoadingData]  = useState(false);
 
-    // ── Validar token ────────────────────────────────────────────────────────
+    // ── Validar token Y cargar datos en una sola llamada server-side ───────
+    // La Edge Function devuelve todo filtrado y validado; ya no necesitamos
+    // 2 useEffect ni queries directas al schema.
 
     useEffect(() => {
         if (!token) { setError('Token inválido.'); setLoading(false); return; }
 
-        const validate = async () => {
-            const { data, error: dbErr } = await supabase
-                .from('client_portal_tokens')
-                .select('*')
-                .eq('token', token)
-                .single();
-
-            if (dbErr || !data) {
-                setError('El enlace es inválido o ha sido revocado.');
-                setLoading(false);
-                return;
-            }
-
-            const row = data as Record<string, unknown>;
-
-            // Validar status
-            if (row.status !== 'active') {
-                setError(row.status === 'revoked'
-                    ? 'Este enlace ha sido revocado por el equipo legal.'
-                    : 'Este enlace ha expirado.'
+        const validateAndLoad = async () => {
+            try {
+                const { data, error: invokeErr } = await supabase.functions.invoke(
+                    'validate-portal-token',
+                    { body: { token } }
                 );
+
+                if (invokeErr) {
+                    console.error('Edge Function error:', invokeErr);
+                    setError('No se pudo validar el enlace. Inténtalo más tarde.');
+                    setLoading(false);
+                    return;
+                }
+
+                if (!data?.ok) {
+                    setError(data?.error ?? 'El enlace es inválido o ha sido revocado.');
+                    setLoading(false);
+                    return;
+                }
+
+                // Mapear la respuesta de la Edge Function
+                const td = data.tokenData;
+                const pt: PortalToken = {
+                    id:                 token, // Solo conservamos el token, el id real no se expone
+                    organizationId:     '',    // Ya no es necesario en frontend (filtrado server-side)
+                    clientId:           '',    // Idem
+                    clientName:         td.clientName,
+                    clientEmail:        td.clientEmail,
+                    canSeeExpedientes:  td.canSeeExpedientes,
+                    canSeeContratos:    td.canSeeContratos,
+                    canSeeHonorarios:   td.canSeeHonorarios,
+                    canSeeDocumentos:   td.canSeeDocumentos,
+                    canUploadDocs:      td.canUploadDocs,
+                    status:             'active',
+                    expiresAt:          td.expiresAt,
+                    accessCount:        td.accessCount,
+                    maxAccesses:        td.maxAccesses,
+                };
+                setPortalToken(pt);
+
+                // Mapear recursos ya filtrados por la Edge Function
+                setExpedientes((data.expedientes ?? []).map((r: Record<string, unknown>) => ({
+                    id:              r.id as string,
+                    titulo:          r.titulo as string,
+                    tipoProceso:     r.tipo_proceso as string,
+                    parteActora:     r.parte_actora as string,
+                    parteDemandada:  r.parte_demandada as string,
+                    nuestraPosicion: r.nuestra_posicion as string,
+                    status:          r.status as string,
+                    riesgo:          r.riesgo as string,
+                    fechaInicio:     r.fecha_inicio as string | undefined,
+                    tribunal:        r.tribunal as string | undefined,
+                })));
+
+                setContratos((data.contratos ?? []).map((r: Record<string, unknown>) => ({
+                    id:        r.id as string,
+                    title:     r.title as string,
+                    type:      r.type as string,
+                    status:    r.status as string,
+                    value:     r.value ? Number(r.value) : undefined,
+                    currency:  r.currency as string | undefined,
+                    startDate: r.start_date as string | undefined,
+                    endDate:   r.end_date as string | undefined,
+                })));
+
+                setFacturas((data.facturas ?? []).map((r: Record<string, unknown>) => ({
+                    id:               r.id as string,
+                    numeroFactura:    r.number as string,
+                    estado:           r.status as string,
+                    totalNeto:        Number(r.total ?? 0),
+                    currency:         r.currency as string | undefined,
+                    fechaEmision:     r.issued_at as string,
+                    fechaVencimiento: r.due_at as string | undefined,
+                })));
+
+                // Set tab inicial según permisos
+                if (pt.canSeeExpedientes)  setActiveTab('expedientes');
+                else if (pt.canSeeContratos) setActiveTab('contratos');
+                else if (pt.canSeeHonorarios) setActiveTab('honorarios');
+                else if (pt.canSeeDocumentos) setActiveTab('documentos');
+
                 setLoading(false);
-                return;
-            }
-
-            // Validar TTL
-            if (new Date(row.expires_at as string) < new Date()) {
-                setError('Este enlace ha expirado. Contacte a su abogado para obtener uno nuevo.');
+            } catch (err) {
+                console.error('Error validating portal:', err);
+                setError('Ocurrió un error inesperado. Inténtalo más tarde.');
                 setLoading(false);
-                return;
             }
-
-            // Validar max_accesses
-            const maxAcc = row.max_accesses as number | null;
-            const acc    = row.access_count as number;
-            if (maxAcc !== null && acc >= maxAcc) {
-                setError('Este enlace ha alcanzado el número máximo de accesos permitidos.');
-                setLoading(false);
-                return;
-            }
-
-            // Token válido — mapear
-            const pt: PortalToken = {
-                id:                  row.id as string,
-                organizationId:      row.organization_id as string,
-                clientId:            row.client_id as string,
-                clientName:          row.client_name as string,
-                clientEmail:         row.client_email as string,
-                canSeeExpedientes:   Boolean(row.can_see_expedientes),
-                canSeeContratos:     Boolean(row.can_see_contratos),
-                canSeeHonorarios:    Boolean(row.can_see_honorarios),
-                canSeeDocumentos:    Boolean(row.can_see_documentos),
-                canUploadDocs:       Boolean(row.can_upload_docs),
-                status:              row.status as PortalToken['status'],
-                expiresAt:           row.expires_at as string,
-                accessCount:         acc,
-                maxAccesses:         maxAcc,
-            };
-
-            setPortalToken(pt);
-
-            // Incrementar contador de acceso (best-effort, sin bloquear)
-            supabase
-                .from('client_portal_tokens')
-                .update({
-                    access_count:      acc + 1,
-                    last_accessed_at:  new Date().toISOString(),
-                })
-                .eq('id', pt.id)
-                .then(() => {});
-
-            // Set tab inicial según permisos
-            if (pt.canSeeExpedientes)  setActiveTab('expedientes');
-            else if (pt.canSeeContratos) setActiveTab('contratos');
-            else if (pt.canSeeHonorarios) setActiveTab('honorarios');
-            else if (pt.canSeeDocumentos) setActiveTab('documentos');
-
-            setLoading(false);
         };
 
-        validate();
+        validateAndLoad();
     }, [token]);
 
-    // ── Cargar datos según tab activo ─────────────────────────────────────────
-
+    // Estado de carga de datos siempre false ahora — todo viene en la llamada inicial
+    // (se mantiene la variable por compatibilidad con el render condicional inferior)
+    // Activado solo al cambiar de tab para mostrar el spinner si hubiera lazy-load futuro
     useEffect(() => {
-        if (!portalToken) return;
-
-        const load = async () => {
-            setLoadingData(true);
-            try {
-                if (activeTab === 'expedientes' && portalToken.canSeeExpedientes && expedientes.length === 0) {
-                    const { data } = await supabase
-                        .from('expedientes')
-                        .select('id, titulo, tipo_proceso, parte_actora, parte_demandada, nuestra_posicion, status, riesgo, fecha_inicio, tribunal')
-                        .eq('organization_id', portalToken.organizationId)
-                        .eq('client_id', portalToken.clientId);
-
-                    setExpedientes((data ?? []).map(r => ({
-                        id:              r.id as string,
-                        titulo:          r.titulo as string,
-                        tipoProceso:     r.tipo_proceso as string,
-                        parteActora:     r.parte_actora as string,
-                        parteDemandada:  r.parte_demandada as string,
-                        nuestraPosicion: r.nuestra_posicion as string,
-                        status:          r.status as string,
-                        riesgo:          r.riesgo as string,
-                        fechaInicio:     r.fecha_inicio as string | undefined,
-                        tribunal:        r.tribunal as string | undefined,
-                    })));
-                }
-
-                if (activeTab === 'contratos' && portalToken.canSeeContratos && contratos.length === 0) {
-                    const { data } = await supabase
-                        .from('contracts')
-                        .select('id, title, type, status, value, currency, start_date, end_date')
-                        .eq('organization_id', portalToken.organizationId)
-                        .eq('client_id', portalToken.clientId);
-
-                    setContratos((data ?? []).map(r => ({
-                        id:        r.id as string,
-                        title:     r.title as string,
-                        type:      r.type as string,
-                        status:    r.status as string,
-                        value:     r.value ? Number(r.value) : undefined,
-                        currency:  r.currency as string | undefined,
-                        startDate: r.start_date as string | undefined,
-                        endDate:   r.end_date as string | undefined,
-                    })));
-                }
-
-                if (activeTab === 'honorarios' && portalToken.canSeeHonorarios && facturas.length === 0) {
-                    const { data } = await supabase
-                        .from('invoices')
-                        .select('id, number, status, total, currency, issued_at, due_at')
-                        .eq('organization_id', portalToken.organizationId)
-                        .eq('client_id', portalToken.clientId);
-
-                    setFacturas((data ?? []).map(r => ({
-                        id:               r.id as string,
-                        numeroFactura:    r.number as string,
-                        estado:           r.status as string,
-                        totalNeto:        Number(r.total ?? 0),
-                        currency:         r.currency as string | undefined,
-                        fechaEmision:     r.issued_at as string,
-                        fechaVencimiento: r.due_at as string | undefined,
-                    })));
-                }
-            } finally {
-                setLoadingData(false);
-            }
-        };
-
-        load();
-    }, [activeTab, portalToken]); // eslint-disable-line react-hooks/exhaustive-deps
+        setLoadingData(false);
+    }, [activeTab]);
 
     // ── Estados de carga y error ──────────────────────────────────────────────
 

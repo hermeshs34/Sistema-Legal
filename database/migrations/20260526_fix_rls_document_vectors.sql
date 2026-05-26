@@ -20,7 +20,7 @@ WITH CHECK (
 
 -- ── Política de SELECT ────────────────────────────────────────────────────────
 -- Todos los usuarios autenticados de la misma organización pueden leer vectores
-CREATE POLICY IF NOT EXISTS "authenticated_select_document_vectors"
+CREATE POLICY "authenticated_select_document_vectors"
 ON public.document_vectors
 FOR SELECT
 TO authenticated

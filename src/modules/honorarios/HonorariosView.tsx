@@ -179,6 +179,7 @@ export const HonorariosView: React.FC = () => {
         currency: 'USD' as Currency,
         rate: 150,
         rateUsd: 150,
+        category: 'GENERAL' as 'HEARING' | 'DRAFTING' | 'RESEARCH' | 'MEETING' | 'CALL' | 'TRAVEL' | 'GENERAL',
         description: '',
         date: new Date().toISOString().split('T')[0]
     });
@@ -257,6 +258,55 @@ export const HonorariosView: React.FC = () => {
         };
         loadInitialData();
     }, []);
+
+    // Recargar datos cuando se cambia de pestaña.
+    // Necesario porque otros módulos (LiveTimerWidget, ContractListView,
+    // ExpedienteForm, etc.) pueden crear/modificar recursos sin que esta
+    // vista se entere. Cada pestaña recarga solo su tabla principal.
+    useEffect(() => {
+        if (activeTab === 'TIME') {
+            timeEntryService.getAll()
+                .then(t => {
+                    const normalizedTimes = t.map(item => ({
+                        ...item,
+                        currency: item.currency || 'USD',
+                        rate:     item.rate || item.rateUsd || 0,
+                        amount:   item.amount || item.amountUsd || 0,
+                    }));
+                    setTimeEntries(normalizedTimes);
+                })
+                .catch(err => console.error('Error refrescando time entries:', err));
+        }
+        if (activeTab === 'CASOS') {
+            matterService.getAll()
+                .then(m => {
+                    const normalizedMatters = m.map(item => ({
+                        ...item,
+                        currency:   item.currency || 'USD',
+                        budget:     item.budget || item.budgetUsd || 0,
+                        hourlyRate: item.hourlyRate || item.hourlyRateUsd || 0,
+                    }));
+                    setMatters(normalizedMatters);
+                })
+                .catch(err => console.error('Error refrescando matters:', err));
+        }
+        if (activeTab === 'FACTURAS') {
+            invoiceService.getAll()
+                .then(setInvoices)
+                .catch(err => console.error('Error refrescando invoices:', err));
+        }
+        if (activeTab === 'GASTOS') {
+            // Recargar gastos de todos los asuntos activos
+            Promise.all(matters.map(m => expenseService.getByMatter(m.id)))
+                .then(arrays => setExpenses(arrays.flat()))
+                .catch(err => console.error('Error refrescando expenses:', err));
+        }
+        if (activeTab === 'CLIENTES') {
+            clientService.getAll()
+                .then(setClients)
+                .catch(err => console.error('Error refrescando clients:', err));
+        }
+    }, [activeTab]);  // eslint-disable-line react-hooks/exhaustive-deps
 
     // Helper: Obtener tasa actual para guardado
     const getRateForSave = (from: Currency, to: Currency) => {
@@ -504,7 +554,7 @@ export const HonorariosView: React.FC = () => {
             }));
             setTimeEntries(normalized);
             setShowTimeModal(false);
-            setTimeForm({ id: undefined, matterId: '', lawyerId: '', hours: 1, currency: 'USD', rate: 150, rateUsd: 150, description: '', date: new Date().toISOString().split('T')[0] });
+            setTimeForm({ id: undefined, matterId: '', lawyerId: '', hours: 1, currency: 'USD', rate: 150, rateUsd: 150, category: 'GENERAL', description: '', date: new Date().toISOString().split('T')[0] });
         } catch (err) {
             console.error("Error saving time entry:", err);
             alert("No se pudo guardar el registro de tiempo.");
@@ -797,6 +847,7 @@ export const HonorariosView: React.FC = () => {
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>HORAS</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>MONTO ({presentationCurrency})</th>
                         <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b' }}>FACTURADO</th>
+                        <th style={{ padding: '1rem', fontSize: '0.75rem', color: '#64748b', textAlign: 'right' }}>ACCIONES</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -815,6 +866,77 @@ export const HonorariosView: React.FC = () => {
                             </td>
                             <td style={{ padding: '1rem' }}>
                                 {e.isInvoiced ? <CheckCircle2 size={16} color="#16a34a" /> : <AlertTriangle size={16} color="#f59e0b" />}
+                            </td>
+                            <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                {!e.isInvoiced && (
+                                    <div style={{ display: 'inline-flex', gap: 6 }}>
+                                        <button
+                                            onClick={() => {
+                                                setTimeForm({
+                                                    id:          e.id,
+                                                    matterId:    e.matterId,
+                                                    lawyerId:    e.lawyerId ?? '',
+                                                    hours:       e.hours,
+                                                    currency:    e.currency || 'USD',
+                                                    rate:        e.rate || e.rateUsd || 0,
+                                                    rateUsd:     e.rateUsd || 0,
+                                                    category:    (e.category as typeof timeForm.category) || 'GENERAL',
+                                                    description: e.description || '',
+                                                    date:        e.date,
+                                                });
+                                                setShowTimeModal(true);
+                                            }}
+                                            title="Editar tarifa y datos"
+                                            style={{
+                                                padding: '0.4rem 0.75rem',
+                                                borderRadius: 8,
+                                                border: '1px solid #c7d2fe',
+                                                background: '#eef2ff',
+                                                color: '#4f46e5',
+                                                fontWeight: 600,
+                                                fontSize: '0.75rem',
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                            }}
+                                        >
+                                            <Edit2 size={12} /> Editar
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (!confirm(`¿Eliminar este registro de ${e.hours}h?`)) return;
+                                                try {
+                                                    await timeEntryService.delete(e.id);
+                                                    setTimeEntries(prev => prev.filter(t => t.id !== e.id));
+                                                } catch (err) {
+                                                    alert('No se pudo eliminar el registro.');
+                                                }
+                                            }}
+                                            title="Eliminar registro"
+                                            style={{
+                                                padding: '0.4rem 0.75rem',
+                                                borderRadius: 8,
+                                                border: '1px solid #fecaca',
+                                                background: '#fef2f2',
+                                                color: '#b91c1c',
+                                                fontWeight: 600,
+                                                fontSize: '0.75rem',
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                            }}
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                )}
+                                {e.isInvoiced && (
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                                        Bloqueado (facturado)
+                                    </span>
+                                )}
                             </td>
                         </tr>
                     ))}
@@ -2068,6 +2190,23 @@ export const HonorariosView: React.FC = () => {
                                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>FECHA</label>
                                     <input type="date" style={inputStyle} value={timeForm.date || ''} onChange={e => setTimeForm({...timeForm, date: e.target.value})} />
                                 </div>
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem' }}>CATEGORÍA</label>
+                                <select
+                                    style={inputStyle}
+                                    value={timeForm.category}
+                                    onChange={e => setTimeForm({ ...timeForm, category: e.target.value as typeof timeForm.category })}
+                                >
+                                    <option value="HEARING">🎤 Audiencia</option>
+                                    <option value="DRAFTING">✍️ Redacción</option>
+                                    <option value="RESEARCH">🔍 Investigación</option>
+                                    <option value="MEETING">🤝 Reunión</option>
+                                    <option value="CALL">📞 Llamada</option>
+                                    <option value="TRAVEL">🚗 Desplazamiento</option>
+                                    <option value="GENERAL">⏱️ General</option>
+                                </select>
                             </div>
 
                             <div>

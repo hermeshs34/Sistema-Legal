@@ -82,10 +82,12 @@ class UserService {
         }
 
         // 2. Guardamos los datos extendidos en nuestra tabla de perfiles
+        // Como 'profiles' se autogenera por un Trigger al hacer signUp,
+        // usar .upsert() desde el frontend causa un error RLS (no hay permisos de INSERT).
+        // Siempre usamos .update() para afectar la fila que ya existe o que el Trigger acaba de crear.
         const { error: profileError } = await supabase
             .from('profiles')
-            .upsert({
-                id: user.id,
+            .update({
                 email: user.email,
                 name: user.name,
                 role: user.role,
@@ -93,7 +95,8 @@ class UserService {
                 is_active: user.isActive,
                 organization_id: user.organizationId || currentUser?.organizationId,
                 updated_at: new Date().toISOString()
-            });
+            })
+            .eq('id', user.id);
 
         if (profileError) throw profileError;
     }

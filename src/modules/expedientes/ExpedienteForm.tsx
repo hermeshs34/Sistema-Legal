@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { X, Scale, Save, AlertCircle } from 'lucide-react';
+import { X, Scale, Save, AlertCircle, ShieldAlert } from 'lucide-react';
 import { expedienteService } from './expediente.service.ts';
 import { authService } from '../../core/auth.service.ts';
 import type { Expediente, TipoProceso, NuestraPosicion, ExpedienteStatus, RiesgoNivel } from './types.ts';
 import { TIPO_PROCESO_LABELS } from './types.ts';
+import { ConflictCheckModal } from '../legal-team/ConflictCheckModal.tsx';
 
 interface ExpedienteFormProps {
     expediente?: Expediente | null;
@@ -62,6 +63,8 @@ export const ExpedienteForm: React.FC<ExpedienteFormProps> = ({ expediente, onSa
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const [showConflictCheck, setShowConflictCheck] = useState(false);
+    const [conflictCheckId,   setConflictCheckId]   = useState<string | null>(null);
 
     const set = (field: string, value: string) => setForm(f => ({ ...f, [field]: value }));
 
@@ -109,6 +112,7 @@ export const ExpedienteForm: React.FC<ExpedienteFormProps> = ({ expediente, onSa
     );
 
     return (
+        <>
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
             <div style={{ background: '#fff', borderRadius: '20px', width: '100%', maxWidth: '780px', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 30px 80px rgba(0,0,0,0.4)', overflow: 'hidden' }}>
 
@@ -267,24 +271,62 @@ export const ExpedienteForm: React.FC<ExpedienteFormProps> = ({ expediente, onSa
                 </form>
 
                 {/* Footer */}
-                <div style={{ padding: '1.25rem 2rem', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexShrink: 0 }}>
-                    <button onClick={onClose} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#fff', color: '#334155', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}>
-                        Cancelar
-                    </button>
-                    <button
-                        onClick={handleSubmit as any}
-                        disabled={saving}
-                        style={{
-                            padding: '0.75rem 1.75rem', borderRadius: '10px', border: 'none',
-                            background: saving ? '#94a3b8' : 'linear-gradient(135deg, #4f46e5, #6366f1)',
-                            color: 'white', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer',
-                            fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                        }}
-                    >
-                        <Save size={16} /> {saving ? 'Guardando...' : isEdit ? 'Guardar Cambios' : 'Crear Expediente'}
-                    </button>
+                <div style={{ padding: '1.25rem 2rem', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                    {/* Botón de verificación de conflictos — solo para nuevos expedientes */}
+                    {!isEdit ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowConflictCheck(true)}
+                            style={{
+                                padding: '0.65rem 1.25rem', borderRadius: '10px',
+                                border: `1.5px solid ${conflictCheckId ? '#86efac' : '#c7d2fe'}`,
+                                background: conflictCheckId ? '#f0fdf4' : '#eef2ff',
+                                color: conflictCheckId ? '#15803d' : '#4f46e5',
+                                fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem',
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            }}
+                        >
+                            <ShieldAlert size={15} />
+                            {conflictCheckId ? '✅ Conflictos verificados' : 'Verificar Conflictos'}
+                        </button>
+                    ) : (
+                        <div />
+                    )}
+
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button onClick={onClose} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#fff', color: '#334155', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}>
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleSubmit as any}
+                            disabled={saving}
+                            style={{
+                                padding: '0.75rem 1.75rem', borderRadius: '10px', border: 'none',
+                                background: saving ? '#94a3b8' : 'linear-gradient(135deg, #4f46e5, #6366f1)',
+                                color: 'white', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer',
+                                fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            }}
+                        >
+                            <Save size={16} /> {saving ? 'Guardando...' : isEdit ? 'Guardar Cambios' : 'Crear Expediente'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
+
+        {/* Modal de conflictos de interés */}
+        {showConflictCheck && (
+            <ConflictCheckModal
+                initialTitle={form.titulo}
+                initialParteActora={form.parteActora}
+                initialParteDemandada={form.parteDemandada}
+                onProceed={(checkId) => {
+                    setConflictCheckId(checkId);
+                    setShowConflictCheck(false);
+                }}
+                onClose={() => setShowConflictCheck(false)}
+            />
+        )}
+        </>
     );
 };
