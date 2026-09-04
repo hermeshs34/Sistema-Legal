@@ -1,5 +1,5 @@
 /**
- * HermesAI Solutions — Branding corporativo para reportes PDF
+ * HermesAI Tech — Branding corporativo para reportes PDF
  * Colores extraídos del logo SVG oficial:
  *   Primary:  #0077b5 → rgb(0, 119, 181)
  *   Accent:   #ff6b35 → rgb(255, 107, 53)
@@ -8,7 +8,7 @@
 import { jsPDF } from 'jspdf';
 
 export const BRAND = {
-    name:     'HermesAI Solutions',
+    name:     'HermesAI Tech',
     tagline:  '40+ Years Financial Technology Leadership',
     product:  'LegalDoc VE — Plataforma de Compliance Legal',
     colors: {
@@ -51,11 +51,11 @@ export function drawPdfBrandHeader(
     doc.setTextColor(...BRAND.colors.accent);
     doc.text('AI', 20 + hermesWidth + 1, 18);
 
-    // "Solutions" subtítulo
+    // "Tech" subtitulo
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     doc.setTextColor(...BRAND.colors.secondary);
-    doc.text('Solutions', 20, 24);
+    doc.text('Tech', 20, 24);
 
     // Línea de acento naranja debajo del logo
     doc.setDrawColor(...BRAND.colors.accent);

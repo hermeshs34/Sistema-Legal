@@ -306,7 +306,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
                 {/* Logo */}
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                    <img src="/hermesai-logo.svg" alt="HermesAI"
+                    <img src="/hermesai-logo-dark.svg" alt="HermesAI"
                         style={{ height: '48px', width: 'auto', objectFit: 'contain', display: 'block' }} />
                     <p style={{ color: '#475569', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', marginTop: '0.25rem' }}>
                         Legal & Compliance Platform
@@ -354,7 +354,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
                     {/* Logo móvil */}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2.5rem' }} className="mobile-logo">
-                        <img src="/hermesai-logo.svg" alt="HermesAI"
+                        <img src="/hermesai-logo-dark.svg" alt="HermesAI"
                             style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
                         <p style={{ color: '#475569', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', marginTop: '0.25rem' }}>
                             Legal & Compliance Platform

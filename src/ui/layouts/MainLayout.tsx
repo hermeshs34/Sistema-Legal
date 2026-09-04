@@ -153,7 +153,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 {/* Logo */}
                 <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
                     <div style={{ background: '#ffffff', borderRadius: '14px', padding: '12px 16px', marginBottom: '0.6rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-                        <img src="/hermes-ai-logo.svg" alt="HermesAI Solutions" style={{ width: '100%', display: 'block' }} />
+                        <img src="/hermes-ai-logo.svg" alt="HermesAI Tech" style={{ width: '100%', display: 'block' }} />
                     </div>
                     <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.12em', textAlign: 'center' }}>
                         Plataforma LegalDoc VE
