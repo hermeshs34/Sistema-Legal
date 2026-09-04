@@ -338,8 +338,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 </div>
 
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                    <p style={{ color: '#1e293b', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                        © 2026 HermesAI Technologies — Confidencial
+                    <p style={{ color: '#94a3b8', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        © 2026 HermesAI Tech — Confidencial
                     </p>
                 </div>
             </div>
@@ -377,11 +377,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     <div style={{ marginTop: '2rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
                             <ShieldCheck size={12} color="#10b981" />
-                            <span style={{ fontSize: '0.65rem', color: '#334155' }}>Conexión cifrada SSL · Sesión segura · Auditoría SHA-256</span>
+                            <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Conexión cifrada SSL · Sesión segura · Auditoría SHA-256</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <p style={{ fontSize: '0.65rem', color: '#1e293b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>HermesAI Technologies</p>
-                            <p style={{ fontSize: '0.65rem', color: '#1e293b', fontWeight: 800, margin: 0 }}>LegalDoc VE</p>
+                            <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>HermesAI Tech</p>
+                            <p style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800, margin: 0 }}>LegalDoc VE</p>
                         </div>
                     </div>
                 </div>
